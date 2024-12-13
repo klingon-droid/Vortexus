@@ -1,3 +1,8 @@
+import { getBalanceTool } from './getBalance';
+import { getSPLBalanceTool } from './getTokenBalance';
+import { getTpsTool } from './getTps';
+import { getTransactionReceiptTool } from './getTransactionReceipt';
+
 export interface ToolConfig<T = any> {
   definition: {
     type: 'function';
@@ -14,4 +19,9 @@ export interface ToolConfig<T = any> {
   handler: (args: T) => Promise<any>;
 }
 
-export const tools: Record<string, ToolConfig> = {};
+export const tools: Record<string, ToolConfig> = {
+  get_balance: getBalanceTool,
+  get_spl_balance: getSPLBalanceTool,
+  get_tps: getTpsTool,
+  get_transaction_receipt: getTransactionReceiptTool,
+};
