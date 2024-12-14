@@ -2,11 +2,11 @@ import 'dotenv/config';
 import OpenAI from 'openai';
 import readline from 'readline';
 import { createAssistant } from './openai/createAssistant.ts';
-import { createThread } from './openai/createThread.ts';
 import { createRun } from './openai/createRun.ts';
 import { performRun } from './openai/performRun.ts';
 import { Thread } from 'openai/resources/beta/threads/threads';
 import { Assistant } from 'openai/resources/beta/assistants';
+import { getOrCreateThread } from './openai/createThread.ts';
 
 const client = new OpenAI();
 
@@ -54,7 +54,7 @@ async function chat(thread: Thread, assistant: Assistant): Promise<void> {
 async function main(): Promise<void> {
   try {
     const assistant = await createAssistant(client);
-    const thread = await createThread(client);
+    const thread = await getOrCreateThread(client);
 
     console.log('Chat started! Type "exit" to end the conversation.');
     await chat(thread, assistant);

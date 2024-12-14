@@ -1,7 +1,11 @@
 import OpenAI from 'openai';
 import { Thread } from 'openai/resources/beta/threads/threads';
 
-export async function createThread(client: OpenAI, message?: string): Promise<Thread> {
+export async function getOrCreateThread(client: OpenAI, message?: string, threadId?: string): Promise<Thread> {
+  if (threadId) {
+    return await client.beta.threads.retrieve(threadId);
+  }
+
   const thread = await client.beta.threads.create();
 
   if (message) {
