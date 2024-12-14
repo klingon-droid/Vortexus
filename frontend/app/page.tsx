@@ -1,18 +1,15 @@
 "use client";
 
-import { TypewriterEffectSmooth } from "./components/ui/typewriter-effect";
+import { TypewriterEffectSmoothDemo } from "./components/writer";
 import { FloatingDock } from "./components/ui/floating-dock";
 import {
   IconBrandGithub,
   IconBrandX,
-  IconExchange,
-  IconHome,
-  IconNewSection,
-  IconTerminal2,
+  IconRobot,
+  IconBrandTelegram
 } from "@tabler/icons-react";
-import { TableFooter } from "@mui/material";
-import Image from "next/image";
-import { HoverEffect } from "./components/ui/card-hover-effect";
+import { FeaturesSection } from "./components/Hover";
+import { FlipWordsDemo } from "./components/Hero";
 
 export const projects = [
   {
@@ -33,54 +30,27 @@ export const projects = [
       "A multinational technology company that specializes in Internet-related services and products.",
     link: "https://google.com",
   },
-  {
-    title: "Meta",
-    description:
-      "A technology company that focuses on building products that advance Facebook's mission of bringing the world closer together.",
-    link: "https://meta.com",
-  },
 
 ];
 
 export default function Home() {
     const links = [
         {
-          title: "Home",
+          title: "Chatbot",
           icon: (
-            <IconHome className="h-full w-full text-neutral-500 dark:text-neutral-300" />
+            <IconRobot className="h-full w-full text-neutral-500 dark:text-neutral-300" />
           ),
           href: "/Chat",
         },
-    
         {
-          title: "Products",
+          title: "Telegram",
           icon: (
-            <IconTerminal2 className="h-full w-full text-neutral-500 dark:text-neutral-300" />
+            <IconBrandTelegram className="h-full w-full text-neutral-500 dark:text-neutral-300" />
           ),
           href: "#",
         },
         {
-          title: "Components",
-          icon: (
-            <IconNewSection className="h-full w-full text-neutral-500 dark:text-neutral-300" />
-          ),
-          href: "#",
-        },
-        {
-          title: "Aceternity UI",
-          
-          href: "#",
-        },
-        {
-          title: "Changelog",
-          icon: (
-            <IconExchange className="h-full w-full text-neutral-500 dark:text-neutral-300" />
-          ),
-          href: "#",
-        },
-    
-        {
-          title: "Twitter",
+          title: "X",
           icon: (
             <IconBrandX className="h-full w-full text-neutral-500 dark:text-neutral-300" />
           ),
@@ -94,44 +64,14 @@ export default function Home() {
           href: "#",
         },
       ];
-    const words = [
-        {
-            text: "Prompt",
-        },
-        {
-            text: "the speed",
-        },
-        {
-            text: "of Solana",
-        },
-        {
-            text: "with",
-        },
-        {
-            text: "Archturus.",
-            className: "text-violet-500 dark:text-violet-500",
-        },
-    ];
     return (
-        <div className="flex flex-col items-center justify-center">
-           
-            <TypewriterEffectSmooth words={words} />
-            <div className="flex flex-col md:flex-row space-y-4 md:space-y-0 space-x-0 md:space-x-4">
-                <button className="w-40 h-10 rounded-xl bg-black border dark:border-white border-transparent text-white text-sm">
-                    Docs
-                </button>
-                <button className="w-40 h-10 rounded-xl bg-white text-black border border-black text-sm">
-                    Launch app
-                </button>
-            </div>
-            <div className="max-w-5xl mx-auto px-8">
-                <HoverEffect items={projects} />
-            </div>
+        <div className="pb-9">
+            <TypewriterEffectSmoothDemo/>
+            <FlipWordsDemo/>
+            <FeaturesSection/>
             <FloatingDock
-                mobileClassName="translate-y-20" // only for demo, remove for production
                 items={links}
-              />
-      
+            />
         </div>
     );
 }
