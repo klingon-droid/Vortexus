@@ -1,11 +1,11 @@
 {
-  "name": "solana-agent",
+  "name": "arcturus-agent",
   "version": "1.0.0",
   "description": "",
   "main": "index.ts",
   "scripts": {
     "build": "tsc",
-    "start": "tsx src/index.ts"
+    "start": "nodemon src/index.ts"
   },
   "keywords": [],
   "author": "",
