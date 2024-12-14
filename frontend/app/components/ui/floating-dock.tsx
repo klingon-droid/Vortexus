@@ -31,14 +31,14 @@ export const FloatingDock = ({
         <FloatingDockDesktop
           items={items}
           className={cn(
-            "fixed bottom-0 left-1/2 transform -translate-x-1/2 z-50",
+            "fixed bottom-5 left-1/2 transform -translate-x-1/2 z-50",
             desktopClassName
           )}
         />
         <FloatingDockMobile
           items={items}
           className={cn(
-            "fixed bottom-4 right-4 z-50", // Ensures visibility and proper placement
+            "fixed bottom-5 left-1/2 transform -translate-x-1/2 z-50", // Ensures visibility and proper placement
             mobileClassName
           )}
         />
@@ -93,7 +93,7 @@ export const FloatingDock = ({
         </AnimatePresence>
         <button
           onClick={() => setOpen(!open)}
-          className="h-12 w-12 rounded-full bg-gray-50 dark:bg-neutral-800 flex items-center justify-center"
+          className="h-12 w-12 rounded-full  bg-gray-50 dark:bg-neutral-800 flex items-center justify-center"
         >
           <IconLayoutNavbarCollapse className="h-5 w-5 text-neutral-500 dark:text-neutral-400" />
         </button>
