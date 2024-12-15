@@ -1,3 +1,5 @@
+"use client";
+
 import { motion } from "framer-motion";
 import { Wallet } from "lucide-react";
 
@@ -10,23 +12,33 @@ export function ChatHeader({ walletAddress }: ChatHeaderProps) {
     <motion.div
       initial={{ y: -20, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
-      className="border-b backdrop-blur-md"
+      transition={{ type: "spring", stiffness: 120 }}
+      className="border-b backdrop-blur-lg bg-black/50"
     >
-      <div className="mx-auto p-3 flex items-center justify-between">
+      <div className="mx-auto p-4 flex items-center justify-between">
+        {/* Left Section */}
         <div className="flex items-center gap-4">
-          <div className="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center">
-            <Wallet className="w-4 h-4 text-white" />
+          <div className="w-10 h-10 rounded-full bg-indigo-600 flex items-center justify-center shadow-lg">
+            <Wallet className="w-5 h-5 text-white" />
           </div>
           <div>
-            <h2 className="text-gray-200 font-medium">Solana Assistant</h2>
-            <p className="text-gray-400 text-sm">Connected to Mainnet</p>
+            <h2 className="text-gray-100 font-semibold text-lg tracking-wide">
+              Solana Assistant
+            </h2>
+            <p className="text-gray-400 text-xs">Connected to Mainnet</p>
           </div>
         </div>
-        {walletAddress && (
+
+        {/* Wallet Status */}
+        {walletAddress ? (
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
-            <span className="text-sm text-gray-400">{walletAddress}</span>
+            <span className="text-sm text-gray-300 font-mono">
+              {walletAddress}
+            </span>
           </div>
+        ) : (
+          <span className="text-gray-400 text-sm">Wallet not connected</span>
         )}
       </div>
     </motion.div>

@@ -1,48 +1,38 @@
-import { motion } from 'framer-motion';
-import { Wallet } from 'lucide-react';
-import { Button } from './ui/button';
+"use client";
 
-interface ConnectWalletProps {
-  onConnect: () => void;
-}
+import { motion } from "framer-motion";
+import { Wallet } from "lucide-react";
+import { useWalletModal } from "@solana/wallet-adapter-react-ui";
+import { Button } from "./ui/button";
 
-export function ConnectWallet({ onConnect }: ConnectWalletProps) {
+export function ConnectWallet() {
+  const { setVisible } = useWalletModal();
+
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.9 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ type: "spring", stiffness: 260, damping: 20 }}
-      className="fixed bottom-8 right-8 z-50 p-6 bg-black/80 border border-silver/20 rounded-lg shadow-lg backdrop-blur-sm"
-      whileHover={{ scale: 1.02 }}
-      whileTap={{ scale: 0.98 }}
+      className="fixed bottom-8 right-8 z-50 p-6 bg-gray-900/90 border border-gray-700 rounded-xl shadow-2xl backdrop-blur-lg"
     >
-      <div className="flex flex-col items-center gap-4">
+      <div className="flex flex-col items-center gap-5">
         <motion.div
-          className="w-12 h-12 rounded-full bg-indigo-500 flex items-center justify-center"
-          animate={{ 
-            scale: [1, 1.1, 1],
-            rotate: [0, 10, -10, 0]
-          }}
-          transition={{ 
-            duration: 2,
-            repeat: Infinity,
-            repeatType: "reverse"
-          }}
+          className="w-12 h-12 rounded-full bg-indigo-500 flex items-center justify-center shadow-lg"
+          animate={{ scale: [1, 1.1, 1], rotate: [0, 10, -10, 0] }}
+          transition={{ duration: 2, repeat: Infinity }}
         >
           <Wallet className="w-6 h-6 text-white" />
         </motion.div>
-        <h3 className="text-white font-medium">Connect Your Wallet</h3>
-        <p className="text-gray-300 text-sm text-center max-w-[240px]">
-          Connect your Solana wallet to start minting NFTs and managing tokens
+        <h3 className="text-white font-semibold text-lg">Connect Your Wallet</h3>
+        <p className="text-gray-400 text-sm text-center max-w-[240px]">
+          Connect your Solana wallet to interact with the chat assistant.
         </p>
-        <motion.div className="w-full">
-          <Button 
-            onClick={onConnect} 
-            className="w-full bg-indigo-600 text-white hover:bg-indigo-700"
-          >
-            Connect Wallet
-          </Button>
-        </motion.div>
+        <Button
+          onClick={() => setVisible(true)} // Open wallet modal
+          className="w-full bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+        >
+          Connect Wallet
+        </Button>
       </div>
     </motion.div>
   );
