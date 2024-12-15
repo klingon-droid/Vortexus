@@ -29,16 +29,8 @@ export const getTransactionReceiptTool: ToolConfig<GetTransactionReceiptArgs> = 
 
 async function getTransactionReceipt(hash: string) {
   const connection = new Connection('https://api.mainnet-beta.solana.com');
-  const receipt = await connection.getTransaction(hash, {
+  return await connection.getParsedTransaction(hash, {
     commitment: 'confirmed',
     maxSupportedTransactionVersion: 2,
   });
-
-  return receipt
-    ? {
-        status: receipt.meta?.err ? 'reverted' : 'confirmed',
-        hash: receipt.transaction.signatures[0],
-        ...(receipt.meta?.err && { error: 'Transaction reverted' }),
-      }
-    : 'Transaction not found';
 }
