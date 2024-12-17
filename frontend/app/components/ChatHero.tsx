@@ -36,7 +36,7 @@ export function LandingPage({ onStart }: LandingPageProps) {
           transition={{ delay: 0.2 }}
           className="text-6xl font-bold text-white mb-8 text-center"
         >
-          Ask Aceternity UI Anything
+          Ask Arcturus Anything
         </motion.h1>
 
         {/* Form */}
