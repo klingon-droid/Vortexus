@@ -25,7 +25,7 @@ export default function ChatApp() {
         ) : !started ? (
           <LandingPage onStart={handleStart} />
         ) : (
-          <ChatInterface initialMessage={initialMessage} />
+          <ChatInterface/>
         )}
       </div>
     </CustomWalletProvider>

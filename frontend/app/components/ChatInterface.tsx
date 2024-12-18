@@ -63,7 +63,7 @@ export function ChatInterface() {
   const sendMessageToAPI = async (message: string) => {
     setLoading(true);
     try {
-      // Fetch data from your Solana agent backend
+      // Fetch data from your backend
       const response = await fetch("https://solana-agent.onrender.com/prompt", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -72,37 +72,48 @@ export function ChatInterface() {
           walletAddress: publicKey ? publicKey.toBase58() : null,
         }),
       });
-
+  
       const data = await response.json();
-      console.log("API Output:", data);
-
-      // Safely parse the 'output' field
-      const outputData = data.output ? JSON.parse(data.output) : null;
-
-      if (outputData && outputData.success && outputData.transaction) {
-        const transactionData = outputData.transaction; // Base64 encoded transaction data
-
-        // Decode the transaction data
-        const transactionBuffer = Buffer.from(transactionData, "base64");
-        const versionedTransaction = VersionedTransaction.deserialize(transactionBuffer);
-
-        toast.info("Please sign the transaction in your wallet.");
-
-        // Sign the transaction
-        const signedTransaction = await signTransaction(versionedTransaction);
-
-        // Use Helius RPC endpoint
-        const heliusEndpoint = `https://mainnet.helius-rpc.com/?api-key=${process.env.NEXT_PUBLIC_HELIUS_API_KEY}`;
-        const connection = new Connection(heliusEndpoint, "confirmed");
-
-        // Send the transaction
-        const txid = await connection.sendRawTransaction(signedTransaction.serialize());
-
-        toast.success(`Transaction sent successfully! TXID: ${txid}`);
-        return `Transaction sent successfully! TXID: ${txid}`;
-      } else {
-        throw new Error("Invalid transaction data received from API.");
+      console.log("API Response:", data);
+  
+      // Check if the response has transaction data
+      if (data.output) {
+        let outputData;
+  
+        try {
+          outputData = JSON.parse(data.output);
+        } catch (e) {
+          // If parsing fails, assume it's general chat output
+          return data.output;
+        }
+  
+        if (outputData && outputData.success && outputData.transaction) {
+          const transactionData = outputData.transaction; // Base64 encoded transaction data
+  
+          // Decode and handle the transaction
+          const transactionBuffer = Buffer.from(transactionData, "base64");
+          const versionedTransaction = VersionedTransaction.deserialize(transactionBuffer);
+  
+          toast.info("Please sign the transaction in your wallet.");
+  
+          // Sign the transaction
+          const signedTransaction = await signTransaction(versionedTransaction);
+  
+          // Use Helius RPC endpoint
+          const heliusEndpoint = `https://mainnet.helius-rpc.com/?api-key=${process.env.NEXT_PUBLIC_HELIUS_API_KEY}`;
+          const connection = new Connection(heliusEndpoint, "confirmed");
+  
+          // Send the transaction
+          const txid = await connection.sendRawTransaction(signedTransaction.serialize());
+  
+          toast.success(`Transaction sent successfully! TXID: ${txid}`);
+          return `Transaction sent successfully! TXID: ${txid}`;
+        }
       }
+  
+      // If no transaction data, assume it's a normal message
+      return data.response || "Received an empty response.";
+  
     } catch (error) {
       console.error("API Error:", error.message);
       toast.error(`Error: ${error.message}`);
@@ -111,6 +122,7 @@ export function ChatInterface() {
       setLoading(false);
     }
   };
+  
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
