@@ -124,7 +124,7 @@ export function ChatInterface() {
       // If no transaction data, assume it's a normal message
       return data.response || "Received an empty response.";
 
-    } catch (error : any) {
+    } catch (error: any) {
       console.error("API Error:", error.message);
       toast.error(`Error: ${error.message}`);
       return `Error: ${error.message}`;
@@ -161,7 +161,7 @@ export function ChatInterface() {
         )
       );
       setInput("");
-    } catch (error : any) {
+    } catch (error: any) {
       console.error("Error during handleSubmit:", error.message);
       toast.error("Failed to process your request.");
     }

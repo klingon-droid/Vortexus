@@ -47,6 +47,7 @@ You have access to these tools:
 - "buy_tokens": Create a token swap transaction on the Solana blockchain using Jupiter Exchange to swap SOL for another token. Replies with the transaction data
 - "create_token": Create a launch transaction for a new token on Pump.fun with specified metadata and options. Replies with the transaction data
 - "deploy_collection": Return transaction data for deploying a new NFT collection on Solana blockchain via Metaplex
+- "open_meteora_position": Open a position on a DLMM pool using SOL
 
 Remember:
 - Taking action is good, but blindly repeating failed operations is not
