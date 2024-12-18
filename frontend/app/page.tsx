@@ -8,30 +8,9 @@ import {
   IconRobot,
   IconBrandTelegram
 } from "@tabler/icons-react";
-import { FeaturesSection } from "./components/Hover";
+import FeaturesSection from "./components/Hover";
 import { FlipWordsDemo } from "./components/Hero";
 
-export const projects = [
-  {
-    title: "Stripe",
-    description:
-      "A technology company that builds economic infrastructure for the internet.",
-    link: "https://stripe.com",
-  },
-  {
-    title: "Netflix",
-    description:
-      "A streaming service that offers a wide variety of award-winning TV shows, movies, anime, documentaries, and more on thousands of internet-connected devices.",
-    link: "https://netflix.com",
-  },
-  {
-    title: "Google",
-    description:
-      "A multinational technology company that specializes in Internet-related services and products.",
-    link: "https://google.com",
-  },
-
-];
 
 export default function Home() {
     const links = [
@@ -54,7 +33,7 @@ export default function Home() {
           icon: (
             <IconBrandX className="h-full w-full text-neutral-500 dark:text-neutral-300" />
           ),
-          href: "#",
+          href: "https://x.com/arcturus_sol",
         },
         {
           title: "GitHub",
