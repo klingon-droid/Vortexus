@@ -6,7 +6,7 @@ import { motion } from "framer-motion";
 import { Wallet, ArrowRight, Plus, Trash2, Menu, X } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { ToastContainer, toast } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';  
+import 'react-toastify/dist/ReactToastify.css';
 import { Connection } from "@solana/web3.js";
 import { VersionedTransaction } from '@solana/web3.js';
 
@@ -72,49 +72,59 @@ export function ChatInterface() {
           walletAddress: publicKey ? publicKey.toBase58() : null,
         }),
       });
-  
+
       const data = await response.json();
       console.log("API Response:", data);
-  
+
       // Check if the response has transaction data
       if (data.output) {
         let outputData;
-  
+
         try {
           outputData = JSON.parse(data.output);
         } catch (e) {
           // If parsing fails, assume it's general chat output
           return data.output;
         }
-  
+
         if (outputData && outputData.success && outputData.transaction) {
           const transactionData = outputData.transaction; // Base64 encoded transaction data
-  
+
           // Decode and handle the transaction
           const transactionBuffer = Buffer.from(transactionData, "base64");
           const versionedTransaction = VersionedTransaction.deserialize(transactionBuffer);
-  
+
+          if (!publicKey) {
+            toast.error("Wallet not connected. Please connect your wallet.");
+            return "Wallet not connected.";
+          }
+
+          if (!signTransaction) {
+            toast.error("Your wallet does not support signing transactions.");
+            return "Wallet does not support signing transactions.";
+          }
+
           toast.info("Please sign the transaction in your wallet.");
-  
+
           // Sign the transaction
           const signedTransaction = await signTransaction(versionedTransaction);
-  
+
           // Use Helius RPC endpoint
           const heliusEndpoint = `https://mainnet.helius-rpc.com/?api-key=${process.env.NEXT_PUBLIC_HELIUS_API_KEY}`;
           const connection = new Connection(heliusEndpoint, "confirmed");
-  
+
           // Send the transaction
           const txid = await connection.sendRawTransaction(signedTransaction.serialize());
-  
+
           toast.success(`Transaction sent successfully! TXID: ${txid}`);
           return `Transaction sent successfully! TXID: ${txid}`;
         }
       }
-  
+
       // If no transaction data, assume it's a normal message
       return data.response || "Received an empty response.";
-  
-    } catch (error) {
+
+    } catch (error : any) {
       console.error("API Error:", error.message);
       toast.error(`Error: ${error.message}`);
       return `Error: ${error.message}`;
@@ -122,7 +132,7 @@ export function ChatInterface() {
       setLoading(false);
     }
   };
-  
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -151,7 +161,7 @@ export function ChatInterface() {
         )
       );
       setInput("");
-    } catch (error) {
+    } catch (error : any) {
       console.error("Error during handleSubmit:", error.message);
       toast.error("Failed to process your request.");
     }
@@ -231,8 +241,8 @@ export function ChatInterface() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 className={`p-3 rounded-lg break-words w-fit max-w-full sm:max-w-md ${msg.isBot
-                    ? "bg-gray-700 text-gray-200"
-                    : "bg-indigo-600 text-white ml-auto"
+                  ? "bg-gray-700 text-gray-200"
+                  : "bg-indigo-600 text-white ml-auto"
                   }`}
               >
                 <ReactMarkdown>{msg.text}</ReactMarkdown>
