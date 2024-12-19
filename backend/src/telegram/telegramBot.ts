@@ -50,7 +50,7 @@ app.get('/health', (req, res) => {
   });
 });
 
-pp.post(`/webhook/${process.env.TELEGRAM_BOT_TOKEN}`, (req, res) => {
+app.post(`/webhook/${process.env.TELEGRAM_BOT_TOKEN}`, (req, res) => {
   bot.processUpdate(req.body);
   res.sendStatus(200);
 });
