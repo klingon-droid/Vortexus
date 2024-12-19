@@ -28,7 +28,7 @@ app.use(express.json());
 
 const bot = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN, {
   webHook: {
-    port: process.env.PORT || 3000
+    port: undefined
   }
 });
 const db = new Pool({ connectionString: process.env.DATABASE_URL });
@@ -45,15 +45,18 @@ app.get('/', (req, res) => {
 app.get('/health', (req, res) => {
   res.status(200).json({
     status: 'healthy',
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    botWebhookUrl: `https://solana-agent-f9p2.onrender.com/webhook/${process.env.TELEGRAM_BOT_TOKEN}`
   });
 });
-app.post(`/webhook/${process.env.TELEGRAM_BOT_TOKEN}`, (req, res) => {
+
+pp.post(`/webhook/${process.env.TELEGRAM_BOT_TOKEN}`, (req, res) => {
   bot.processUpdate(req.body);
   res.sendStatus(200);
 });
 
 const PORT = process.env.PORT || 3000;
+
 app.listen(PORT, async () => {
   try {
     console.log(`Server is running on port ${PORT}`);
@@ -64,6 +67,15 @@ app.listen(PORT, async () => {
   } catch (error) {
     console.error('Error setting webhook:', error);
   }
+});
+
+app.on('error', (error) => {
+  console.error('Express server error:', error);
+});
+
+process.on('SIGTERM', () => {
+  console.log('SIGTERM received, shutting down gracefully');
+  process.exit(0);
 });
 
 interface AiAgentResponse {
