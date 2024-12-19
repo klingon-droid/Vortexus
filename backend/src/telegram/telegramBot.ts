@@ -91,30 +91,15 @@ bot.onText(/\/start/, async (msg) => {
 
     bot.sendMessage(
       chatId,
-      `Welcome! A dedicated wallet has been created for you.\nPublic Key: \`${publicKey}\``, 
-      { 
-        parse_mode: 'Markdown',
-        reply_markup: {
-          inline_keyboard: [[
-            { text: 'Copy Address', callback_data: `copy_address:${publicKey}` }
-          ]]
-        }
-      }
+      `Welcome! A dedicated wallet has been created for you.\n\n` +
+      `Your wallet address:\n\n\`${publicKey}\`\n\n` +
+      '⚡️ Tap the address above to copy it\n' +
+      '⚠️ Always verify the address after copying',
+      { parse_mode: 'Markdown' }
     );
   } catch (error) {
     console.error('Error during /start:', error instanceof Error ? error.message : 'Unknown error');
     bot.sendMessage(chatId, 'An error occurred while creating your wallet. Please try again.');
-  }
-});
-
-bot.on('callback_query', async (callbackQuery) => {
-  const message = callbackQuery.message;
-  const chatId = message!.chat.id;
-
-  if (callbackQuery.data?.startsWith('copy_address:')) {
-    const address = callbackQuery.data.split(':')[1];
-    
-    bot.answerCallbackQuery(callbackQuery.id, { text: 'Address copied!' });
   }
 });
 
@@ -130,14 +115,13 @@ bot.onText(/\/checkaddress/, async (msg) => {
       return;
     }
 
-    bot.sendMessage(chatId, `Your wallet address is: \`${publicKey}\``, { 
-      parse_mode: 'Markdown',
-      reply_markup: {
-        inline_keyboard: [[
-          { text: 'Copy Address', callback_data: `copy_address:${publicKey}` }
-        ]]
-      }
-    });
+    bot.sendMessage(
+      chatId,
+      `Your wallet address:\n\n\`${publicKey}\`\n\n` +
+      '⚡️ Tap the address above to copy it\n' +
+      '⚠️ Always verify the address after copying',
+      { parse_mode: 'Markdown' }
+    );
   } catch (error) {
     console.error('Error during /checkaddress:', error);
     bot.sendMessage(chatId, 'An error occurred while retrieving your address. Please try again.');
