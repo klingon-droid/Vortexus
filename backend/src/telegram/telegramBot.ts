@@ -5,6 +5,7 @@ import dotenv from 'dotenv';
 import crypto from 'crypto';
 import bcrypt from 'bcrypt';
 import { Pool } from 'pg';
+import http from 'http';
 
 dotenv.config();
 
@@ -21,6 +22,15 @@ const userStates: {
     lastMessageId?: number
   } 
 } = {};
+
+const server = http.createServer((req, res) => {
+  res.writeHead(200, { 'Content-Type': 'text/plain' });
+  res.end('Telegram bot is running');
+});
+
+server.listen(process.env.PORT || 3000, () => {
+  console.log(`Dummy server running on port ${process.env.PORT || 3000}`);
+});
 
 const bot = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN!, { polling: true });
 const db = new Pool({ connectionString: process.env.DATABASE_URL });
