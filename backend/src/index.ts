@@ -2,6 +2,8 @@ import express from 'express';
 import 'dotenv/config';
 import './telegram/telegramBot';
 import OpenAI from 'openai';
+import helmet from 'helmet';
+import cors from 'cors';
 import { createAssistant } from './openai/createAssistant.ts';
 import { getOrCreateThread } from './openai/createThread.ts';
 import { createRun } from './openai/createRun.ts';
@@ -12,7 +14,8 @@ const client = new OpenAI();
 
 const app = express();
 app.use(express.json());
-
+app.use(helmet());
+app.use(cors());
 app.post('/prompt', async (req, res) => {
   let { message, walletAddress, threadId } = req.body;
   if (typeof message !== 'string') {
