@@ -5,7 +5,7 @@ import dotenv from 'dotenv';
 import crypto from 'crypto';
 import bcrypt from 'bcrypt';
 import { Pool } from 'pg';
-import http from 'http';
+import express from 'express';
 
 dotenv.config();
 
@@ -23,23 +23,48 @@ const userStates: {
   } 
 } = {};
 
-const server = http.createServer((req, res) => {
-  res.writeHead(200, { 'Content-Type': 'text/plain' });
-  res.end('Telegram bot is running');
-});
+const app = express();
+app.use(express.json());
 
-server.listen(process.env.PORT || 3000, () => {
-  console.log(`Dummy server running on port ${process.env.PORT || 3000}`);
+const bot = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN, {
+  webHook: {
+    port: process.env.PORT || 3000
+  }
 });
-
-const bot = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN!, { polling: true });
 const db = new Pool({ connectionString: process.env.DATABASE_URL });
 const connection = new Connection(process.env.SOLANA_URL!);
-
 const IV_LENGTH = 16;
 const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY!;
 const ENCRYPTION_ALGORITHM = process.env.ENCRYPTION_ALGORITHM;
 const AI_AGENT_API_URL = process.env.AI_AGENT_API_URL!;
+
+app.get('/', (req, res) => {
+  res.status(200).send('Solana Bot Service is running');
+});
+
+app.get('/health', (req, res) => {
+  res.status(200).json({
+    status: 'healthy',
+    timestamp: new Date().toISOString()
+  });
+});
+app.post(`/webhook/${process.env.TELEGRAM_BOT_TOKEN}`, (req, res) => {
+  bot.processUpdate(req.body);
+  res.sendStatus(200);
+});
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, async () => {
+  try {
+    console.log(`Server is running on port ${PORT}`);
+    
+    const webhookUrl = `https://solana-agent-f9p2.onrender.com/webhook/${process.env.TELEGRAM_BOT_TOKEN}`;
+    await bot.setWebHook(webhookUrl);
+    console.log('Webhook set successfully:', webhookUrl);
+  } catch (error) {
+    console.error('Error setting webhook:', error);
+  }
+});
 
 interface AiAgentResponse {
   response: string;
