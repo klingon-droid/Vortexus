@@ -6,6 +6,7 @@ import { buyTokensTool } from './buyTokens.ts';
 import { createTokenTool } from './createToken.ts';
 import { deployCollectionTool } from './deployCollection.ts';
 import { getTpsTool } from './getTps.ts';
+import { openMeteoraPositionTool } from './openMeteoraPosition.ts';
 
 export interface ToolConfig<T = any> {
   definition: {
@@ -34,4 +35,5 @@ export const tools: Record<string, ToolConfig> = {
   buy_tokens: buyTokensTool,
   create_token: createTokenTool,
   deploy_collection: deployCollectionTool,
+  open_meteora_position: openMeteoraPositionTool,
 };

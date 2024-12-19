@@ -25,7 +25,7 @@ export function CustomWalletProvider({ children }: Props) {
   const wallets = useMemo(
     () => [
       new PhantomWalletAdapter(),
-      new SolflareWalletAdapter({ network: "mainnet-beta" }), // Solflare explicitly on mainnet
+      new SolflareWalletAdapter(), // Solflare explicitly on mainnet
       new TorusWalletAdapter(),
     ],
     []

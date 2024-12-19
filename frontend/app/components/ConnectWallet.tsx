@@ -3,7 +3,7 @@
 import { motion } from "framer-motion";
 import { Wallet } from "lucide-react";
 import { useWalletModal } from "@solana/wallet-adapter-react-ui";
-import { Button } from "./ui/button";
+import Button from '@mui/material/Button';
 
 export function ConnectWallet() {
   const { setVisible } = useWalletModal();
@@ -28,7 +28,9 @@ export function ConnectWallet() {
           Connect your Solana wallet to interact with the chat assistant.
         </p>
         <Button
-          onClick={() => setVisible(true)} // Open wallet modal
+          onClick={() => setVisible(true)}
+          color="secondary"
+          variant="contained" // Open wallet modal
           className="w-full bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
         >
           Connect Wallet
