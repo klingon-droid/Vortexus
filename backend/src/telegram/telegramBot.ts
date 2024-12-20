@@ -11,15 +11,17 @@ dotenv.config();
 
 const userStates: { 
   [chatId: number]: { 
-    awaitingPasswordSet?: boolean, 
+    awaitingPasswordSet?: boolean,
     awaitingPasswordUnlock?: boolean,
+    awaitingPasswordForExport?: boolean,  // Added new state
     awaitingTransferRecipient?: boolean,
     awaitingTransferAmount?: boolean,
     transferDetails?: {
       recipient?: string,
       amount?: number
     },
-    lastMessageId?: number
+    lastMessageId?: number,
+    warningMessageId?: number  // Added for warning message tracking
   } 
 } = {};
 
@@ -264,6 +266,116 @@ bot.onText(/\/balance/, async (msg) => {
   } catch (error) {
     console.error('Error during /balance:', error);
     bot.sendMessage(chatId, 'An error occurred while fetching your balance. Please try again.');
+  }
+});
+
+bot.onText(/\/exportkey/, async (msg) => {
+  const chatId = msg.chat.id;
+  
+  try {
+    // Check if wallet exists
+    const walletResult = await db.query(
+      'SELECT password, private_key FROM user_wallets WHERE telegram_id = $1',
+      [chatId]
+    );
+    
+    if (!walletResult.rows.length) {
+      bot.sendMessage(chatId, 'No wallet found. Please use /start to create a wallet first.');
+      return;
+    }
+
+    const hasPassword = !!walletResult.rows[0].password;
+    
+    if (!hasPassword) {
+      bot.sendMessage(
+        chatId,
+        '⚠️ Your wallet is not password protected! Please use /lock to set a password before exporting your private key.'
+      );
+      return;
+    }
+
+    // Set state for password verification
+    userStates[chatId] = { 
+      awaitingPasswordForExport: true,
+      lastMessageId: msg.message_id 
+    };
+
+    const warningMessage = await bot.sendMessage(
+      chatId,
+      '⚠️ *IMPORTANT SECURITY WARNING*\n\n' +
+      '• Never share your private key with anyone\n' +
+      '• Only export your key in a secure environment\n' +
+      '• Anyone with your private key can access your funds\n\n' +
+      'Please enter your wallet password to confirm the export:',
+      { parse_mode: 'Markdown' }
+    );
+
+    // Store warning message ID for later deletion
+    userStates[chatId].warningMessageId = warningMessage.message_id;
+
+  } catch (error) {
+    console.error('Error in /exportkey:', error);
+    bot.sendMessage(chatId, 'An error occurred while processing your request. Please try again.');
+  }
+});
+
+bot.on('message', async (msg) => {
+  const chatId = msg.chat.id;
+  const text = msg.text;
+  const messageId = msg.message_id;
+
+  if (!text || text.startsWith('/')) return;
+
+  const state = userStates[chatId];
+  if (!state) return;
+
+  if (state.awaitingPasswordForExport) {
+    try {
+      state.lastMessageId = messageId;
+
+      const result = await db.query(
+        'SELECT password, private_key FROM user_wallets WHERE telegram_id = $1',
+        [chatId]
+      );
+      
+      const hashedPassword = result.rows[0]?.password;
+      const encryptedPrivateKey = result.rows[0]?.private_key;
+
+      if (hashedPassword && await bcrypt.compare(text, hashedPassword)) {
+        const privateKey = decrypt(encryptedPrivateKey);
+        
+        const keyMessage = await bot.sendMessage(
+          chatId,
+          `🔑 Your private key (will be deleted in 30 seconds):\n\n\`${privateKey}\``,
+          { parse_mode: 'Markdown' }
+        );
+
+        setTimeout(async () => {
+          try {
+            await bot.deleteMessage(chatId, state.lastMessageId);
+            await bot.deleteMessage(chatId, state.warningMessageId);
+            await bot.deleteMessage(chatId, keyMessage.message_id); 
+            bot.sendMessage(
+              chatId,
+              '🔒 Private key message has been deleted for security.'
+            );
+          } catch (error) {
+            console.error('Error deleting messages:', error);
+          }
+        }, 30000);
+
+      } else {
+        bot.sendMessage(chatId, '❌ Incorrect password. Please try again or use /exportkey to start over.');
+      }
+
+      delete userStates[chatId];
+
+    } catch (error) {
+      console.error('Error in private key export:', error);
+      bot.sendMessage(chatId, 'An error occurred while processing your request. Please try again.');
+      delete userStates[chatId];
+    }
+    return;
   }
 });
 
