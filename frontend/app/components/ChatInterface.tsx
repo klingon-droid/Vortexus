@@ -140,34 +140,43 @@ export function ChatInterface() {
 
     const userMessage: Message = { text: input, isBot: false };
 
-    try {
-      // Send message to API and process the transaction
-      const botResponse = await sendMessageToAPI(input);
-
-      // Update chat session with user and bot messages
-      setSessions((prev) =>
+    // Immediately update the session to display the user's message
+    setSessions((prev) =>
         prev.map((session) =>
-          session.id === currentSessionId
-            ? {
-              ...session,
-              name: session.messages.length === 0 ? input : session.name,
-              messages: [
-                ...session.messages,
-                userMessage,
-                { text: botResponse, isBot: true },
-              ],
-            }
-            : session
+            session.id === currentSessionId
+                ? {
+                    ...session,
+                    name: session.messages.length === 0 ? input : session.name,
+                    messages: [...session.messages, userMessage],
+                }
+                : session
         )
-      );
-      setInput("");
+    );
+    setInput(""); // Clear input field
+
+    try {
+        // Send message to API and process the transaction
+        const botResponse = await sendMessageToAPI(input);
+
+        // Update chat session with the bot's response
+        setSessions((prev) =>
+            prev.map((session) =>
+                session.id === currentSessionId
+                    ? {
+                        ...session,
+                        messages: [
+                            ...session.messages,
+                            { text: botResponse, isBot: true },
+                        ],
+                    }
+                    : session
+            )
+        );
     } catch (error: any) {
-      console.error("Error during handleSubmit:", error.message);
-      toast.error("Failed to process your request.");
+        console.error("Error during handleSubmit:", error.message);
+        toast.error("Failed to process your request.");
     }
-  };
-
-
+};
 
   return (
     <div className="relative flex h-screen text-white">

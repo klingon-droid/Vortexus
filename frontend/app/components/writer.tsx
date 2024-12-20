@@ -1,5 +1,6 @@
 "use client";
 import { TypewriterEffectSmooth } from "./ui/typewriter-effect";
+import Link from "next/link";
 export function TypewriterEffectSmoothDemo() {
   const words = [
     {
@@ -25,6 +26,18 @@ export function TypewriterEffectSmoothDemo() {
         The road to freedom starts from here
       </p>
       <TypewriterEffectSmooth words={words} />
+      <div className="flex flex-col md:flex-row space-y-4 md:space-y-0 space-x-0 md:space-x-4">
+        <Link href="/Chat">
+        <button className="w-40 h-10 rounded-xl bg-violet-500 border dark:border-white border-transparent text-white text-sm">
+          Arcturus Web agent
+        </button>
+        </Link>
+        <Link href="https://t.me/arcturusAI_bot">
+        <button className="w-40 h-10 rounded-xl bg-violet-500 text-white border border-gray-300  text-sm">
+          Arcturus Telegram agent
+        </button>
+        </Link>
+      </div>
     </div>
   );
 }

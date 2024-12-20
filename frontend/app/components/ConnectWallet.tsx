@@ -2,11 +2,17 @@
 
 import { motion } from "framer-motion";
 import { Wallet } from "lucide-react";
-import { useWalletModal } from "@solana/wallet-adapter-react-ui";
-import Button from '@mui/material/Button';
+import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
+import { useEffect, useState } from "react";
+import Button from "@mui/material/Button";
 
 export function ConnectWallet() {
-  const { setVisible } = useWalletModal();
+  const [isClient, setIsClient] = useState(false);
+
+  // Ensure this component renders only on the client side
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   return (
     <motion.div
@@ -27,14 +33,18 @@ export function ConnectWallet() {
         <p className="text-gray-400 text-sm text-center max-w-[240px]">
           Connect your Solana wallet to interact with the chat assistant.
         </p>
-        <Button
-          onClick={() => setVisible(true)}
-          color="secondary"
-          variant="contained" // Open wallet modal
-          className="w-full bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
-        >
-          Connect Wallet
-        </Button>
+        {/* Render WalletMultiButton only on the client side */}
+        {isClient && <WalletMultiButton />}
+        <div>
+          <Button
+            href="/Chat"
+            color="secondary"
+            variant="contained"
+            className="w-full bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+          >
+            Proceed to Chat
+          </Button>
+        </div>
       </div>
     </motion.div>
   );
