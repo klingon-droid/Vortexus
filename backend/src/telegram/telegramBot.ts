@@ -449,8 +449,18 @@ bot.on('message', async (msg) => {
       return;
     }
 
-    const result = await db.query('SELECT thread_id FROM user_wallets WHERE telegram_id = $1', [chatId]);
-    const threadId = result.rows[0]?.thread_id || null;
+    const walletResult = await db.query(
+      'SELECT thread_id, public_key, private_key FROM user_wallets WHERE telegram_id = $1',
+      [chatId]
+    );
+    const threadId = walletResult.rows[0]?.thread_id || null;
+    const privateKey = walletResult.rows[0]?.private_key ? decrypt(walletResult.rows[0].private_key) : null;
+    const publicKey = walletResult.rows[0]?.public_key;
+
+    if (!privateKey || !publicKey) {
+      bot.sendMessage(chatId, 'Wallet details not found. Please use /start to initialize your wallet.');
+      return;
+    }
 
     const response = await fetch(AI_AGENT_API_URL, {
       method: 'POST',
@@ -458,13 +468,46 @@ bot.on('message', async (msg) => {
       body: JSON.stringify({ message: text, threadId }),
     });
 
-    const { response: aiResponse, threadId: newThreadId } = await response.json() as AiAgentResponse;
+    const { response: aiResponse, output, threadId: newThreadId } = await response.json() as AiAgentResponse;
 
     if (!threadId && newThreadId) {
       await db.query('UPDATE user_wallets SET thread_id = $1 WHERE telegram_id = $2', [newThreadId, chatId]);
     }
 
-    bot.sendMessage(chatId, aiResponse, { parse_mode: 'Markdown' });
+    await bot.sendMessage(chatId, aiResponse, { parse_mode: 'Markdown' });
+
+    if (output?.transaction) {
+      try {
+        const wallet = Keypair.fromSecretKey(Buffer.from(privateKey, 'base64'));
+        const serializedTx = Buffer.from(output.transaction, 'base64');
+        const transaction = Transaction.from(serializedTx);
+
+        const latestBlockhash = await connection.getLatestBlockhash();
+        transaction.recentBlockhash = latestBlockhash.blockhash;
+        transaction.feePayer = wallet.publicKey;
+
+        transaction.sign(wallet);
+        const signature = await connection.sendRawTransaction(transaction.serialize());
+
+        await connection.confirmTransaction({
+          signature,
+          blockhash: latestBlockhash.blockhash,
+          lastValidBlockHeight: latestBlockhash.lastValidBlockHeight,
+        });
+
+        await bot.sendMessage(
+          chatId,
+          `Transaction successful! View on Solscan: [${signature}](https://solscan.io/tx/${signature})`,
+          { parse_mode: 'Markdown' }
+        );
+      } catch (txError) {
+        console.error('Transaction error:', txError);
+        await bot.sendMessage(
+          chatId,
+          'Failed to process the transaction. Please verify your balance and try again.'
+        );
+      }
+    }
   } catch (error) {
     console.error('Error handling message:', error);
     bot.sendMessage(chatId, 'An error occurred. Please try again later.');
