@@ -1,5 +1,4 @@
 "use client";
-
 import { useWallet } from "@solana/wallet-adapter-react";
 import { CustomWalletProvider } from "../components/ui/WalletProvider";
 import { ChatInterface } from "../components/ChatInterface";
@@ -25,7 +24,7 @@ export default function ChatApp() {
         ) : !started ? (
           <LandingPage onStart={handleStart} />
         ) : (
-          <ChatInterface/>
+          <ChatInterface />
         )}
       </div>
     </CustomWalletProvider>

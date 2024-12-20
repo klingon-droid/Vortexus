@@ -8,6 +8,7 @@ import {
   IconRobot,
   IconBrandTelegram
 } from "@tabler/icons-react";
+
 import FeaturesSection from "./components/Hover";
 import { FlipWordsDemo } from "./components/Hero";
 
@@ -26,7 +27,7 @@ export default function Home() {
           icon: (
             <IconBrandTelegram className="h-full w-full text-neutral-500 dark:text-neutral-300" />
           ),
-          href: "#",
+          href: "https://t.me/arcturusAI_bot",
         },
         {
           title: "X",
