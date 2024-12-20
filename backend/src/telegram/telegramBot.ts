@@ -317,15 +317,16 @@ bot.onText(/\/exportkey/, async (msg) => {
 
 bot.on('message', async (msg) => {
   const chatId = msg.chat.id;
-  const text = msg.text;
+  const text = msg.text?.trim();
   const messageId = msg.message_id;
 
   if (!text || text.startsWith('/')) return;
 
   const state = userStates[chatId];
+
   if (state) {
     if (state.awaitingPasswordForExport) {
-      // Handle password verification and key export
+      // Handle password confirmation for private key export
       try {
         state.lastMessageId = messageId;
 
@@ -369,32 +370,7 @@ bot.on('message', async (msg) => {
       return;
     }
   }
-
-  // Forward to AI agent only if no specific state is active
-  if (!state) {
-    try {
-      const walletResult = await db.query(
-        'SELECT thread_id, public_key FROM user_wallets WHERE telegram_id = $1',
-        [chatId]
-      );
-      const threadId = walletResult.rows[0]?.thread_id || null;
-
-      const response = await fetch(AI_AGENT_API_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: text, threadId }),
-      });
-
-      const { response: aiResponse } = await response.json() as AiAgentResponse;
-      await bot.sendMessage(chatId, aiResponse, { parse_mode: 'Markdown' });
-    } catch (error) {
-      console.error('Error handling AI agent message:', error);
-      bot.sendMessage(chatId, 'An error occurred. Please try again later.');
-    }
-  }
 });
-
-
 
 bot.onText(/\/transfer/, async (msg) => {
   const chatId = msg.chat.id;
