@@ -38,6 +38,8 @@ const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY!;
 const ENCRYPTION_ALGORITHM = process.env.ENCRYPTION_ALGORITHM;
 const AI_AGENT_API_URL = process.env.AI_AGENT_API_URL!;
 
+
+
 app.get('/', (req, res) => {
   res.status(200).send('Solana Bot Service is running');
 });
@@ -97,6 +99,122 @@ function decrypt(text: string): string {
   const decrypted = Buffer.concat([decipher.update(Buffer.from(encryptedText, 'hex')), decipher.final()]);
   return decrypted.toString();
 }
+
+async function sendProcessingAnimation(chatId: number) {
+  const clocks = ['🕐', '🕑', '🕒', '🕓', '🕔', '🕕', '🕖', '🕗', '🕘', '🕙', '🕚', '🕛'];
+  let messageId: number | undefined;
+  let index = 0;
+
+  try {
+    const sentMessage = await bot.sendMessage(chatId, `${clocks[index]} Processing your request...`);
+    messageId = sentMessage.message_id;
+  } catch (error) {
+    console.error('Error sending processing message:', error);
+    return null;
+  }
+
+  const interval = setInterval(async () => {
+    index = (index + 1) % clocks.length;
+    try {
+      if (messageId) {
+        await bot.editMessageText(`${clocks[index]} Processing your request...`, {
+          chat_id: chatId,
+          message_id: messageId,
+        });
+      }
+    } catch (error) {
+      console.error('Error updating processing message:', error);
+      clearInterval(interval);
+    }
+  }, 1000);
+
+  return { interval, messageId };
+}
+
+bot.on('message', async (msg) => {
+  const chatId = msg.chat.id;
+  const text = msg.text;
+
+  if (!text || text.startsWith('/')) return;
+
+  const processing = await sendProcessingAnimation(chatId);
+
+  try {
+    const response = await fetch(AI_AGENT_API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: text }),
+    });
+
+    const data: Partial<AiAgentResponse> = await response.json();
+
+    if (!data.response) {
+      throw new Error('Invalid API response: Missing "response" property');
+    }
+
+    const aiResponse = data.response || 'No response available';
+    const output = data.output || {};
+    const threadId = data.threadId || null;
+
+    if (processing) {
+      clearInterval(processing.interval);
+      await bot.editMessageText(aiResponse, {
+        chat_id: chatId,
+        message_id: processing.messageId!,
+        parse_mode: 'Markdown',
+      });
+    }
+
+    if (output.transaction) {
+      try {
+        const result = await db.query('SELECT private_key FROM user_wallets WHERE telegram_id = $1', [chatId]);
+        const privateKey = result.rows[0]?.private_key;
+
+        if (!privateKey) {
+          await bot.sendMessage(chatId, 'No wallet found. Please use /start to create one.');
+          return;
+        }
+
+        const wallet = Keypair.fromSecretKey(Buffer.from(privateKey, 'base64'));
+        const serializedTx = Buffer.from(output.transaction, 'base64');
+        const transaction = Transaction.from(serializedTx);
+
+        const latestBlockhash = await connection.getLatestBlockhash();
+        transaction.recentBlockhash = latestBlockhash.blockhash;
+        transaction.feePayer = wallet.publicKey;
+
+        transaction.sign(wallet);
+        const signature = await connection.sendRawTransaction(transaction.serialize());
+
+        await connection.confirmTransaction({
+          signature,
+          blockhash: latestBlockhash.blockhash,
+          lastValidBlockHeight: latestBlockhash.lastValidBlockHeight,
+        });
+
+        await bot.sendMessage(
+          chatId,
+          `Transaction successful! View on Solscan: [${signature}](https://solscan.io/tx/${signature})`,
+          { parse_mode: 'Markdown' }
+        );
+      } catch (txError) {
+        console.error('Transaction error:', txError);
+        await bot.sendMessage(chatId, 'Failed to process the transaction. Please verify your balance and try again.');
+      }
+    }
+  } catch (error) {
+    console.error('Error processing AI request:', error);
+
+    if (processing) {
+      clearInterval(processing.interval);
+      await bot.editMessageText('❌ An error occurred while processing your request.', {
+        chat_id: chatId,
+        message_id: processing.messageId!,
+      });
+    }
+  }
+});
+
 
 async function isWalletLocked(chatId: number): Promise<boolean> {
   try {
