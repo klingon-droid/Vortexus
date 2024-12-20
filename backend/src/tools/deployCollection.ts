@@ -66,7 +66,7 @@ export const deployCollectionTool: ToolConfig<DeployCollectionArgs> = {
   handler: async ({ walletAddress, name, uri, royaltyPercent, creators }) => {
     try {
       // Initialize Metaplex Umi
-      const umi = createUmi('https://api.mainnet-beta.solana.com').use(mplTokenMetadata());
+      const umi = createUmi('https://api.devnet.solana.com').use(mplTokenMetadata());
 
       // Format creators if provided
       const formattedCreators = creators?.map((creator) => ({
