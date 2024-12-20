@@ -273,7 +273,6 @@ bot.onText(/\/exportkey/, async (msg) => {
   const chatId = msg.chat.id;
 
   try {
-    // Check if wallet exists
     const walletResult = await db.query(
       'SELECT password, private_key FROM user_wallets WHERE telegram_id = $1',
       [chatId]
@@ -294,7 +293,6 @@ bot.onText(/\/exportkey/, async (msg) => {
       return;
     }
 
-    // Set state for password verification
     userStates[chatId] = {
       awaitingPasswordForExport: true,
       lastMessageId: msg.message_id,
@@ -310,7 +308,6 @@ bot.onText(/\/exportkey/, async (msg) => {
       { parse_mode: 'Markdown' }
     );
 
-    // Store warning message ID for later deletion
     userStates[chatId].warningMessageId = warningMessage.message_id;
   } catch (error) {
     console.error('Error in /exportkey:', error);
@@ -318,7 +315,6 @@ bot.onText(/\/exportkey/, async (msg) => {
   }
 });
 
-// Modified message handler for exporting private key
 bot.on('message', async (msg) => {
   const chatId = msg.chat.id;
   const text = msg.text;
@@ -327,54 +323,77 @@ bot.on('message', async (msg) => {
   if (!text || text.startsWith('/')) return;
 
   const state = userStates[chatId];
-  if (!state) return;
+  if (state) {
+    if (state.awaitingPasswordForExport) {
+      // Handle password verification and key export
+      try {
+        state.lastMessageId = messageId;
 
-  if (state.awaitingPasswordForExport) {
-    try {
-      state.lastMessageId = messageId;
-
-      const result = await db.query(
-        'SELECT password, private_key FROM user_wallets WHERE telegram_id = $1',
-        [chatId]
-      );
-
-      const hashedPassword = result.rows[0]?.password;
-      const encryptedPrivateKey = result.rows[0]?.private_key;
-
-      if (hashedPassword && await bcrypt.compare(text, hashedPassword)) {
-        const privateKey = decrypt(encryptedPrivateKey);
-
-        const keyMessage = await bot.sendMessage(
-          chatId,
-          `🔑 Your private key (will be deleted in 30 seconds):\n\n\`${privateKey}\``,
-          { parse_mode: 'Markdown' }
+        const result = await db.query(
+          'SELECT password, private_key FROM user_wallets WHERE telegram_id = $1',
+          [chatId]
         );
 
-        // Schedule deletion of sensitive messages
-        setTimeout(async () => {
-          try {
-            await bot.deleteMessage(chatId, state.lastMessageId);
-            await bot.deleteMessage(chatId, state.warningMessageId);
-            await bot.deleteMessage(chatId, keyMessage.message_id);
-            bot.sendMessage(chatId, '🔒 Private key message has been deleted for security.');
-          } catch (error) {
-            console.error('Error deleting messages:', error);
-          }
-        }, 30000);
-      } else {
-        bot.sendMessage(chatId, '❌ Incorrect password. Please try again or use /exportkey to start over.');
-      }
+        const hashedPassword = result.rows[0]?.password;
+        const encryptedPrivateKey = result.rows[0]?.private_key;
 
-      // Clear state after handling
-      delete userStates[chatId];
-    } catch (error) {
-      console.error('Error in private key export:', error);
-      bot.sendMessage(chatId, 'An error occurred while processing your request. Please try again.');
-      delete userStates[chatId];
+        if (hashedPassword && await bcrypt.compare(text, hashedPassword)) {
+          const privateKey = decrypt(encryptedPrivateKey);
+
+          const keyMessage = await bot.sendMessage(
+            chatId,
+            `🔑 Your private key (will be deleted in 30 seconds):\n\n\`${privateKey}\``,
+            { parse_mode: 'Markdown' }
+          );
+
+          setTimeout(async () => {
+            try {
+              await bot.deleteMessage(chatId, state.lastMessageId!);
+              await bot.deleteMessage(chatId, state.warningMessageId!);
+              await bot.deleteMessage(chatId, keyMessage.message_id);
+              bot.sendMessage(chatId, '🔒 Private key message has been deleted for security.');
+            } catch (error) {
+              console.error('Error deleting messages:', error);
+            }
+          }, 30000);
+        } else {
+          bot.sendMessage(chatId, '❌ Incorrect password. Please try again or use /exportkey to start over.');
+        }
+
+        delete userStates[chatId];
+      } catch (error) {
+        console.error('Error in private key export:', error);
+        bot.sendMessage(chatId, 'An error occurred while processing your request. Please try again.');
+        delete userStates[chatId];
+      }
+      return;
     }
-    return;
+  }
+
+  // Forward to AI agent only if no specific state is active
+  if (!state) {
+    try {
+      const walletResult = await db.query(
+        'SELECT thread_id, public_key FROM user_wallets WHERE telegram_id = $1',
+        [chatId]
+      );
+      const threadId = walletResult.rows[0]?.thread_id || null;
+
+      const response = await fetch(AI_AGENT_API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: text, threadId }),
+      });
+
+      const { response: aiResponse } = await response.json() as AiAgentResponse;
+      await bot.sendMessage(chatId, aiResponse, { parse_mode: 'Markdown' });
+    } catch (error) {
+      console.error('Error handling AI agent message:', error);
+      bot.sendMessage(chatId, 'An error occurred. Please try again later.');
+    }
   }
 });
+
 
 
 bot.onText(/\/transfer/, async (msg) => {
