@@ -451,6 +451,12 @@ bot.on('message', async (msg) => {
       return;
     }
 
+    const processingMessage = await bot.sendMessage(
+      chatId, 
+      '🤔 Processing your request...\n\n_The AI agent is analyzing your message..._', 
+      { parse_mode: 'Markdown' }
+    );
+
     const walletResult = await db.query(
       'SELECT thread_id, public_key, private_key FROM user_wallets WHERE telegram_id = $1',
       [chatId]
@@ -460,6 +466,7 @@ bot.on('message', async (msg) => {
     const publicKey = walletResult.rows[0]?.public_key;
 
     if (!privateKey || !publicKey) {
+      await bot.deleteMessage(chatId, processingMessage.message_id);
       bot.sendMessage(chatId, 'Wallet details not found. Please use /start to initialize your wallet.');
       return;
     }
@@ -472,6 +479,8 @@ bot.on('message', async (msg) => {
 
     const { response: aiResponse, output, threadId: newThreadId } = await response.json() as AiAgentResponse;
 
+    await bot.deleteMessage(chatId, processingMessage.message_id);
+
     if (!threadId && newThreadId) {
       await db.query('UPDATE user_wallets SET thread_id = $1 WHERE telegram_id = $2', [newThreadId, chatId]);
     }
@@ -480,6 +489,12 @@ bot.on('message', async (msg) => {
 
     if (output?.transaction) {
       try {
+        const txProcessingMessage = await bot.sendMessage(
+          chatId,
+          '💫 Processing transaction...\n\n_Please wait while we complete your transaction..._',
+          { parse_mode: 'Markdown' }
+        );
+
         const wallet = Keypair.fromSecretKey(Buffer.from(privateKey, 'base64'));
         const serializedTx = Buffer.from(output.transaction, 'base64');
         const transaction = Transaction.from(serializedTx);
@@ -497,21 +512,36 @@ bot.on('message', async (msg) => {
           lastValidBlockHeight: latestBlockhash.lastValidBlockHeight,
         });
 
+        await bot.deleteMessage(chatId, txProcessingMessage.message_id);
+
         await bot.sendMessage(
           chatId,
-          `Transaction successful! View on Solscan: [${signature}](https://solscan.io/tx/${signature})`,
+          `✅ Transaction successful! View on Solscan: [${signature}](https://solscan.io/tx/${signature})`,
           { parse_mode: 'Markdown' }
         );
       } catch (txError) {
         console.error('Transaction error:', txError);
         await bot.sendMessage(
           chatId,
-          'Failed to process the transaction. Please verify your balance and try again.'
+          '❌ Failed to process the transaction. Please verify your balance and try again.'
         );
       }
     }
   } catch (error) {
     console.error('Error handling message:', error);
-    bot.sendMessage(chatId, 'An error occurred. Please try again later.');
+    try {
+      const messages = await bot.getUpdates();
+      const processingMessages = messages
+        .filter(update => update.message?.text?.includes('Processing'))
+        .map(update => update.message?.message_id);
+      
+      for (const messageId of processingMessages) {
+        if (messageId) await bot.deleteMessage(chatId, messageId);
+      }
+    } catch (cleanupError) {
+      console.error('Error cleaning up processing messages:', cleanupError);
+    }
+    
+    bot.sendMessage(chatId, '❌ An error occurred. Please try again later.');
   }
 });
