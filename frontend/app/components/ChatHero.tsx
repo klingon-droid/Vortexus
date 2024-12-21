@@ -53,7 +53,7 @@ export function LandingPage({ onStart }: LandingPageProps) {
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="Type your question..."
+              placeholder="Type here to take you to arcturus and start a new session..."
               className="w-full bg-white/10 text-white placeholder-indigo-300 rounded-full px-6 py-4 pr-12 border border-indigo-300 focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500 transition-all"
             />
             {/* Submit Button */}
@@ -73,7 +73,7 @@ export function LandingPage({ onStart }: LandingPageProps) {
           transition={{ delay: 0.6 }}
           className="mt-8 text-indigo-200 text-center"
         >
-          <p>Ask about minting NFTs, deploying tokens, or checking your balance</p>
+          <p>Ask about minting NFTs, deploying tokens, performing DeFi actions, or checking your balance</p>
         </motion.div>
       </div>
     </motion.div>
