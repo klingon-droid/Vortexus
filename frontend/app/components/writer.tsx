@@ -7,13 +7,16 @@ export function TypewriterEffectSmoothDemo() {
       text: "Prompt",
     },
     {
+      text: "at",
+    },
+    {
       text: "the",
     },
     {
       text: "speed",
     },
     {
-      text: "of solana with",
+      text: "of Solana with",
     },
     {
       text: "Arcturus.",
@@ -28,14 +31,14 @@ export function TypewriterEffectSmoothDemo() {
       <TypewriterEffectSmooth words={words} />
       <div className="flex flex-col md:flex-row space-y-4 md:space-y-0 space-x-0 md:space-x-4">
         <Link href="/Chat">
-        <button className="w-40 h-10 rounded-xl bg-violet-500 border dark:border-white border-transparent text-white text-sm">
-          Arcturus Web agent
-        </button>
+          <button className="w-40 h-10 rounded-xl bg-violet-500 border dark:border-white border-transparent text-white text-sm">
+            Arcturus Web agent
+          </button>
         </Link>
         <Link href="https://t.me/arcturusAI_bot">
-        <button className="w-40 h-10 rounded-xl bg-violet-500 text-white border border-gray-300  text-sm">
-          Arcturus Telegram agent
-        </button>
+          <button className="w-40 h-10 rounded-xl bg-violet-500 text-white border border-gray-300  text-sm">
+            Arcturus Telegram agent
+          </button>
         </Link>
       </div>
     </div>

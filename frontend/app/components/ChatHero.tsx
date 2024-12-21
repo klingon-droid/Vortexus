@@ -73,7 +73,7 @@ export function LandingPage({ onStart }: LandingPageProps) {
           transition={{ delay: 0.6 }}
           className="mt-8 text-indigo-200 text-center"
         >
-          <p>Ask about minting NFTs, deploying tokens, or checking your balance</p>
+          <p>Ask about minting NFTs, deploying tokens, performing DeFi actions, or checking your balance</p>
         </motion.div>
       </div>
     </motion.div>
