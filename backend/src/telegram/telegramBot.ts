@@ -9,18 +9,25 @@ import express from 'express';
 
 dotenv.config();
 
-const userStates: {
-  [chatId: number]: {
-    awaitingPasswordSet?: boolean;
-    awaitingPasswordUnlock?: boolean;
-    awaitingTransferRecipient?: boolean;
-    awaitingTransferAmount?: boolean;
-    transferDetails?: {
-      recipient?: string;
-      amount?: number;
-    };
-    lastMessageId?: number;
+interface PendingTransaction {
+  data: string;
+  messageId: number;
+}
+interface UserState {
+  awaitingPasswordSet?: boolean;
+  awaitingPasswordUnlock?: boolean;
+  awaitingTransferRecipient?: boolean;
+  awaitingTransferAmount?: boolean;
+  transferDetails?: {
+    recipient?: string;
+    amount?: number;
   };
+  lastMessageId?: number;
+  pendingTransaction?: PendingTransaction;
+}
+
+const userStates: {
+  [chatId: number]: UserState;
 } = {};
 
 const app = express();
@@ -469,7 +476,7 @@ bot.on('message', async (msg) => {
 
     const processingMessage = await bot.sendMessage(
       chatId, 
-      '🤔 Processing your request...\n\n_Arcturus is analyzing your message..._', 
+      '🤔 Processing your request...\n\n_The AI agent is analyzing your message..._', 
       { parse_mode: 'Markdown' }
     );
 
@@ -501,18 +508,76 @@ bot.on('message', async (msg) => {
       await db.query('UPDATE user_wallets SET thread_id = $1 WHERE telegram_id = $2', [newThreadId, chatId]);
     }
 
-    await bot.sendMessage(chatId, aiResponse, { parse_mode: 'Markdown' });
+    if (!output?.transaction) {
+      await bot.sendMessage(chatId, aiResponse, { parse_mode: 'Markdown' });
+      return;
+    }
 
-    if (output?.transaction) {
+    const confirmationMsg = await bot.sendMessage(
+      chatId,
+      `${aiResponse}\n\n` +
+      '💼 Transaction ready to process\n' +
+      'Please confirm if you want to proceed with this transaction.',
+      {
+        parse_mode: 'Markdown',
+        reply_markup: {
+          inline_keyboard: [
+            [
+              { text: '✅ Confirm Transaction', callback_data: 'confirm_transaction' },
+              { text: '❌ Cancel', callback_data: 'cancel_transaction' }
+            ]
+          ]
+        }
+      }
+    );
+
+    userStates[chatId] = {
+      pendingTransaction: {
+        data: output.transaction,
+        messageId: confirmationMsg.message_id
+      }
+    };
+
+  } catch (error) {
+    console.error('Error handling message:', error);
+    bot.sendMessage(chatId, '❌ An error occurred. Please try again later.');
+  }
+});
+
+bot.on('callback_query', async (callbackQuery) => {
+  const chatId = callbackQuery.message?.chat.id;
+  if (!chatId || !callbackQuery.message) return;
+
+  const action = callbackQuery.data;
+  const state = userStates[chatId];
+
+  if (!state?.pendingTransaction) return;
+
+  try {
+    await bot.deleteMessage(chatId, state.pendingTransaction.messageId);
+
+    if (action === 'cancel_transaction') {
+      await bot.sendMessage(chatId, '❌ Transaction cancelled.');
+      delete userStates[chatId];
+      return;
+    }
+
+    if (action === 'confirm_transaction') {
+      const processingMsg = await bot.sendMessage(
+        chatId,
+        '💫 Processing transaction...\n\n_Please wait while we complete your transaction..._',
+        { parse_mode: 'Markdown' }
+      );
+
       try {
-        const txProcessingMessage = await bot.sendMessage(
-          chatId,
-          '💫 Processing transaction...\n\n_Please wait while we complete your transaction..._',
-          { parse_mode: 'Markdown' }
+        const walletResult = await db.query(
+          'SELECT private_key FROM user_wallets WHERE telegram_id = $1',
+          [chatId]
         );
-
+        const privateKey = decrypt(walletResult.rows[0].private_key);
         const wallet = Keypair.fromSecretKey(Buffer.from(privateKey, 'base64'));
-        const serializedTx = Buffer.from(output.transaction, 'base64');
+
+        const serializedTx = Buffer.from(state.pendingTransaction.data, 'base64');
         const transaction = Transaction.from(serializedTx);
 
         const latestBlockhash = await connection.getLatestBlockhash();
@@ -528,36 +593,30 @@ bot.on('message', async (msg) => {
           lastValidBlockHeight: latestBlockhash.lastValidBlockHeight,
         });
 
-        await bot.deleteMessage(chatId, txProcessingMessage.message_id);
+        await bot.deleteMessage(chatId, processingMsg.message_id);
 
         await bot.sendMessage(
           chatId,
-          `✅ Transaction successful! View on Solscan: [${signature}](https://solscan.io/tx/${signature})`,
+          '✅ Transaction completed successfully!\n\n' +
+          `View on Solscan: [${signature}](https://solscan.io/tx/${signature})`,
           { parse_mode: 'Markdown' }
         );
+
       } catch (txError) {
         console.error('Transaction error:', txError);
+        await bot.deleteMessage(chatId, processingMsg.message_id);
         await bot.sendMessage(
           chatId,
-          '❌ Failed to process the transaction. Please verify your balance and try again.'
+          '❌ Transaction failed. Please verify your balance and try again.\n\n' +
+          'Error: ' + (txError instanceof Error ? txError.message : 'Unknown error'),
+          { parse_mode: 'Markdown' }
         );
       }
     }
+    delete userStates[chatId];
+
   } catch (error) {
-    console.error('Error handling message:', error);
-    try {
-      const messages = await bot.getUpdates();
-      const processingMessages = messages
-        .filter(update => update.message?.text?.includes('Processing'))
-        .map(update => update.message?.message_id);
-      
-      for (const messageId of processingMessages) {
-        if (messageId) await bot.deleteMessage(chatId, messageId);
-      }
-    } catch (cleanupError) {
-      console.error('Error cleaning up processing messages:', cleanupError);
-    }
-    
-    bot.sendMessage(chatId, '❌ An error occurred. Please try again later.');
+    console.error('Error handling callback:', error);
+    bot.sendMessage(chatId, '❌ An error occurred. Please try again.');
   }
 });
