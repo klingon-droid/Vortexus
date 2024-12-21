@@ -9,18 +9,18 @@ import express from 'express';
 
 dotenv.config();
 
-const userStates: { 
-  [chatId: number]: { 
-    awaitingPasswordSet?: boolean,
-    awaitingPasswordUnlock?: boolean,
-    awaitingTransferRecipient?: boolean,
-    awaitingTransferAmount?: boolean,
+const userStates: {
+  [chatId: number]: {
+    awaitingPasswordSet?: boolean;
+    awaitingPasswordUnlock?: boolean;
+    awaitingTransferRecipient?: boolean;
+    awaitingTransferAmount?: boolean;
     transferDetails?: {
-      recipient?: string,
-      amount?: number
-    },
-    lastMessageId?: number,
-  } 
+      recipient?: string;
+      amount?: number;
+    };
+    lastMessageId?: number;
+  };
 } = {};
 
 const app = express();
@@ -28,8 +28,8 @@ app.use(express.json());
 
 const bot = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN, {
   webHook: {
-    port: undefined
-  }
+    port: undefined,
+  },
 });
 const db = new Pool({ connectionString: process.env.DATABASE_URL });
 const connection = new Connection(process.env.SOLANA_URL!);
@@ -37,8 +37,6 @@ const IV_LENGTH = 16;
 const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY!;
 const ENCRYPTION_ALGORITHM = process.env.ENCRYPTION_ALGORITHM;
 const AI_AGENT_API_URL = process.env.AI_AGENT_API_URL!;
-
-
 
 app.get('/', (req, res) => {
   res.status(200).send('Solana Bot Service is running');
@@ -48,7 +46,7 @@ app.get('/health', (req, res) => {
   res.status(200).json({
     status: 'healthy',
     timestamp: new Date().toISOString(),
-    botWebhookUrl: `https://solana-agent-f9p2.onrender.com/webhook/${process.env.TELEGRAM_BOT_TOKEN}`
+    botWebhookUrl: `https://solana-agent-f9p2.onrender.com/webhook/${process.env.TELEGRAM_BOT_TOKEN}`,
   });
 });
 
@@ -57,12 +55,12 @@ app.post(`/webhook/${process.env.TELEGRAM_BOT_TOKEN}`, (req, res) => {
   res.sendStatus(200);
 });
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 4000;
 
 app.listen(PORT, async () => {
   try {
     console.log(`Server is running on port ${PORT}`);
-    
+
     const webhookUrl = `https://solana-agent-f9p2.onrender.com/webhook/${process.env.TELEGRAM_BOT_TOKEN}`;
     await bot.setWebHook(webhookUrl);
     console.log('Webhook set successfully:', webhookUrl);
@@ -95,7 +93,11 @@ function encrypt(text: string): string {
 
 function decrypt(text: string): string {
   const [iv, encryptedText] = text.split(':');
-  const decipher = crypto.createDecipheriv(ENCRYPTION_ALGORITHM, Buffer.from(ENCRYPTION_KEY, 'utf-8'), Buffer.from(iv, 'hex'));
+  const decipher = crypto.createDecipheriv(
+    ENCRYPTION_ALGORITHM,
+    Buffer.from(ENCRYPTION_KEY, 'utf-8'),
+    Buffer.from(iv, 'hex'),
+  );
   const decrypted = Buffer.concat([decipher.update(Buffer.from(encryptedText, 'hex')), decipher.final()]);
   return decrypted.toString();
 }
@@ -125,16 +127,16 @@ bot.onText(/\/start/, async (msg) => {
 
     await db.query(
       `INSERT INTO user_wallets (telegram_id, public_key, private_key, is_locked) VALUES ($1, $2, $3, $4)`,
-      [chatId, publicKey, privateKey, false]
+      [chatId, publicKey, privateKey, false],
     );
 
     bot.sendMessage(
       chatId,
       `Welcome! A dedicated wallet has been created for you.\n\n` +
-      `Your wallet address:\n\n\`${publicKey}\`\n\n` +
-      '⚡️ Tap the address above to copy it\n' +
-      '⚠️ Always verify the address after copying',
-      { parse_mode: 'Markdown' }
+        `Your wallet address:\n\n\`${publicKey}\`\n\n` +
+        '⚡️ Tap the address above to copy it\n' +
+        '⚠️ Always verify the address after copying',
+      { parse_mode: 'Markdown' },
     );
   } catch (error) {
     console.error('Error during /start:', error instanceof Error ? error.message : 'Unknown error');
@@ -157,9 +159,9 @@ bot.onText(/\/checkaddress/, async (msg) => {
     bot.sendMessage(
       chatId,
       `Your wallet address:\n\n\`${publicKey}\`\n\n` +
-      '⚡️ Tap the address above to copy it\n' +
-      '⚠️ Always verify the address after copying',
-      { parse_mode: 'Markdown' }
+        '⚡️ Tap the address above to copy it\n' +
+        '⚠️ Always verify the address after copying',
+      { parse_mode: 'Markdown' },
     );
   } catch (error) {
     console.error('Error during /checkaddress:', error);
@@ -212,9 +214,12 @@ bot.onText(/\/lock/, async (msg) => {
 
   try {
     const result = await db.query('SELECT password FROM user_wallets WHERE telegram_id = $1', [chatId]);
-    
+
     if (!result.rows[0]?.password) {
-      bot.sendMessage(chatId, 'Please set a password for your wallet by sending your desired password in the next message. Passwords can not be recovered.');
+      bot.sendMessage(
+        chatId,
+        'Please set a password for your wallet by sending your desired password in the next message. Passwords can not be recovered.',
+      );
       userStates[chatId] = { awaitingPasswordSet: true };
     } else {
       await db.query('UPDATE user_wallets SET is_locked = $1 WHERE telegram_id = $2', [true, chatId]);
@@ -231,7 +236,7 @@ bot.onText(/\/unlock/, async (msg) => {
 
   try {
     const result = await db.query('SELECT password FROM user_wallets WHERE telegram_id = $1', [chatId]);
-    
+
     if (!result.rows[0]?.password) {
       bot.sendMessage(chatId, 'You have not set a password yet. Use /lock to set a password first.');
     } else {
@@ -311,69 +316,80 @@ bot.on('message', async (msg) => {
     if (state.awaitingTransferAmount) {
       try {
         const amount = parseFloat(text);
-    
+
         if (isNaN(amount) || amount <= 0) {
           bot.sendMessage(chatId, 'Invalid amount. Please enter a valid number greater than 0.');
           return;
         }
-    
-        const result = await db.query('SELECT public_key, private_key FROM user_wallets WHERE telegram_id = $1', [chatId]);
+
+        const result = await db.query('SELECT public_key, private_key FROM user_wallets WHERE telegram_id = $1', [
+          chatId,
+        ]);
         const privateKey = result.rows[0]?.private_key ? decrypt(result.rows[0].private_key) : null;
         const fromPublicKey = result.rows[0]?.public_key;
-    
+
         if (!privateKey || !fromPublicKey) {
           bot.sendMessage(chatId, 'Wallet details not found.');
           delete userStates[chatId];
           return;
         }
-    
+
         const wallet = Keypair.fromSecretKey(Buffer.from(privateKey, 'base64'));
         const senderPublicKey = new PublicKey(fromPublicKey);
-        const balance = await connection.getBalance(senderPublicKey) / 1e9;
-    
+        const balance = (await connection.getBalance(senderPublicKey)) / 1e9;
+
         const estimatedFee = 0.000005;
         if (balance < amount + estimatedFee) {
-          bot.sendMessage(chatId, `Insufficient balance. Your wallet has ${(balance).toFixed(2)} SOL, but you need at least ${(amount + estimatedFee).toFixed(2)} SOL.`);
+          bot.sendMessage(
+            chatId,
+            `Insufficient balance. Your wallet has ${balance.toFixed(2)} SOL, but you need at least ${(
+              amount + estimatedFee
+            ).toFixed(2)} SOL.`,
+          );
           delete userStates[chatId];
           return;
         }
-    
+
         const recipientPublicKey = new PublicKey(state.transferDetails!.recipient!);
         const latestBlockhash = await connection.getLatestBlockhash();
-    
+
         const transaction = new Transaction().add(
           SystemProgram.transfer({
             fromPubkey: wallet.publicKey,
             toPubkey: recipientPublicKey,
             lamports: amount * 1_000_000_000,
-          })
+          }),
         );
-    
+
         transaction.recentBlockhash = latestBlockhash.blockhash;
         transaction.feePayer = wallet.publicKey;
-    
+
         transaction.sign(wallet);
-    
+
         const signature = await connection.sendRawTransaction(transaction.serialize());
-    
+
         await connection.confirmTransaction({
           signature,
           blockhash: latestBlockhash.blockhash,
           lastValidBlockHeight: latestBlockhash.lastValidBlockHeight,
         });
-    
-        bot.sendMessage(chatId, `Transfer of ${amount} SOL successful! Transaction signature: [${signature}](https://solscan.io/tx/${signature})`, {
-          parse_mode: 'Markdown',
-        });
-    
+
+        bot.sendMessage(
+          chatId,
+          `Transfer of ${amount} SOL successful! Transaction signature: [${signature}](https://solscan.io/tx/${signature})`,
+          {
+            parse_mode: 'Markdown',
+          },
+        );
+
         delete userStates[chatId];
       } catch (error) {
         console.error('Transfer error:', error);
-    
+
         if (error.logs) {
           console.error('Transaction logs:', error.logs);
         }
-    
+
         bot.sendMessage(chatId, 'An error occurred during the transfer. Please try again.');
         delete userStates[chatId];
       }
@@ -424,7 +440,7 @@ bot.on('message', async (msg) => {
 
       if (hashedPassword && (await bcrypt.compare(text, hashedPassword))) {
         await db.query('UPDATE user_wallets SET is_locked = $1 WHERE telegram_id = $2', [false, chatId]);
-        
+
         await deleteSensitiveMessage();
 
         bot.sendMessage(chatId, 'Your wallet has been unlocked successfully.');
@@ -436,7 +452,7 @@ bot.on('message', async (msg) => {
       }
     } catch (error) {
       console.error('Error unlocking wallet:', error);
-      
+
       await deleteSensitiveMessage();
 
       bot.sendMessage(chatId, 'An error occurred while unlocking your wallet. Please try again.');
