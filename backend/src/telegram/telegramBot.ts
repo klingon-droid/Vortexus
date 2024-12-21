@@ -469,7 +469,7 @@ bot.on('message', async (msg) => {
 
     const processingMessage = await bot.sendMessage(
       chatId, 
-      '🤔 Processing your request...\n\n_The AI agent is analyzing your message..._', 
+      '🤔 Processing your request...\n\n_Arcturus is analyzing your message..._', 
       { parse_mode: 'Markdown' }
     );
 
