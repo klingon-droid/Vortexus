@@ -44,7 +44,7 @@ export function LandingPage({ onStart }: LandingPageProps) {
           transition={{ delay: 0.2 }}
           className="text-6xl font-bold text-white mb-8 text-center"
         >
-          Ask <span className="font-bold text-violet-500 dark:text-violet-500">ARCTURUS ◎</span> Anything
+          Ask <span className="text-violet-500 dark:text-violet-500">Arcturus</span> Anything
         </motion.h1>
 
         {/* Form */}
