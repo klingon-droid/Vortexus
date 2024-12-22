@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { TypewriterEffectSmoothDemo } from "./components/writer";
 import { FloatingDock } from "./components/ui/floating-dock";
 import {
@@ -15,6 +15,7 @@ import { FlipWordsDemo } from "./components/Hero";
 
 export default function Home() {
   const audioRef = useRef<HTMLAudioElement>(null);
+  const [audioPlayed, setAudioPlayed] = useState(false);
 
   const links = [
     {
@@ -47,13 +48,30 @@ export default function Home() {
     },
   ];
 
-  useEffect(() => {
-    if (audioRef.current) {
-      audioRef.current.play().catch((err) => {
-        console.error("Audio playback failed:", err);
-      });
+  const handleUserInteraction = () => {
+    if (!audioPlayed && audioRef.current) {
+      audioRef.current
+        .play()
+        .then(() => {
+          setAudioPlayed(true); // Mark audio as played to avoid repeated playbacks
+        })
+        .catch((err) => {
+          console.error("Audio playback failed:", err);
+        });
     }
-  }, []);
+  };
+
+  useEffect(() => {
+    // Add event listeners for user interaction
+    window.addEventListener("click", handleUserInteraction);
+    window.addEventListener("keydown", handleUserInteraction);
+
+    return () => {
+      // Clean up event listeners
+      window.removeEventListener("click", handleUserInteraction);
+      window.removeEventListener("keydown", handleUserInteraction);
+    };
+  }, [audioPlayed]);
 
   return (
     <div className="pb-9">
