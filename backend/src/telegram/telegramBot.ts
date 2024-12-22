@@ -9,10 +9,6 @@ import express from 'express';
 
 dotenv.config();
 
-interface PendingTransaction {
-  data: string;
-  messageId: number;
-}
 interface UserState {
   awaitingPasswordSet?: boolean;
   awaitingPasswordUnlock?: boolean;
@@ -22,8 +18,11 @@ interface UserState {
     recipient?: string;
     amount?: number;
   };
+  pendingTransaction?: {
+    data: string; 
+    messageId: number;
+  };
   lastMessageId?: number;
-  pendingTransaction?: PendingTransaction;
 }
 
 const userStates: {
@@ -87,8 +86,38 @@ process.on('SIGTERM', () => {
 
 interface AiAgentResponse {
   response: string;
-  output?: { transaction?: string };
+  output?: {
+    success?: boolean;
+    transaction?: string;
+  };
   threadId?: string;
+}
+
+async function sendMessageToAI(
+  message: string,
+  threadId: string | null,
+  publicKey: string | null
+): Promise<AiAgentResponse> {
+  try {
+    const response = await fetch(AI_AGENT_API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        message,
+        threadId,
+        walletAddress: publicKey
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`API request failed with status ${response.status}`);
+    }
+
+    return await response.json() as AiAgentResponse;
+  } catch (error) {
+    console.error('Error in sendMessageToAI:', error);
+    throw error;
+  }
 }
 
 function encrypt(text: string): string {
@@ -469,53 +498,48 @@ bot.on('message', async (msg) => {
 
   try {
     if (await isWalletLocked(chatId)) {
-      const aiResponse = 'Wallet is locked. /unlock to finalize the transaction.';
-      bot.sendMessage(chatId, aiResponse);
+      bot.sendMessage(chatId, 'Wallet is locked. /unlock to continue.');
       return;
     }
 
     const processingMessage = await bot.sendMessage(
       chatId, 
-      '🤔 Processing your request...\n\n_The ARCTURUS is analyzing your message..._', 
+      '🤔 Processing your request...\n\n_The AI agent is analyzing your message..._', 
       { parse_mode: 'Markdown' }
     );
 
     const walletResult = await db.query(
-      'SELECT thread_id, public_key, private_key FROM user_wallets WHERE telegram_id = $1',
+      'SELECT thread_id, public_key FROM user_wallets WHERE telegram_id = $1',
       [chatId]
     );
-    const threadId = walletResult.rows[0]?.thread_id || null;
-    const privateKey = walletResult.rows[0]?.private_key ? decrypt(walletResult.rows[0].private_key) : null;
-    const publicKey = walletResult.rows[0]?.public_key;
 
-    if (!privateKey || !publicKey) {
+    if (!walletResult.rows[0]) {
       await bot.deleteMessage(chatId, processingMessage.message_id);
-      bot.sendMessage(chatId, 'Wallet details not found. Please use /start to initialize your wallet.');
+      bot.sendMessage(chatId, 'No wallet found. Use /start to create one.');
       return;
     }
 
-    const response = await fetch(AI_AGENT_API_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: text, threadId }),
-    });
+    const { thread_id, public_key } = walletResult.rows[0];
 
-    const { response: aiResponse, output, threadId: newThreadId } = await response.json() as AiAgentResponse;
+    const aiResponse = await sendMessageToAI(text, thread_id, public_key);
+
+    if (aiResponse.threadId) {
+      await db.query(
+        'UPDATE user_wallets SET thread_id = $1 WHERE telegram_id = $2',
+        [aiResponse.threadId, chatId]
+      );
+    }
 
     await bot.deleteMessage(chatId, processingMessage.message_id);
 
-    if (!threadId && newThreadId) {
-      await db.query('UPDATE user_wallets SET thread_id = $1 WHERE telegram_id = $2', [newThreadId, chatId]);
-    }
-
-    if (!output?.transaction) {
-      await bot.sendMessage(chatId, aiResponse, { parse_mode: 'Markdown' });
+    if (!aiResponse.output?.transaction) {
+      await bot.sendMessage(chatId, aiResponse.response, { parse_mode: 'Markdown' });
       return;
     }
 
     const confirmationMsg = await bot.sendMessage(
       chatId,
-      `${aiResponse}\n\n` +
+      `${aiResponse.response}\n\n` +
       '💼 Transaction ready to process\n' +
       'Please confirm if you want to proceed with this transaction.',
       {
@@ -532,8 +556,9 @@ bot.on('message', async (msg) => {
     );
 
     userStates[chatId] = {
+      ...userStates[chatId],
       pendingTransaction: {
-        data: output.transaction,
+        data: aiResponse.output.transaction,
         messageId: confirmationMsg.message_id
       }
     };
@@ -551,18 +576,17 @@ bot.on('callback_query', async (callbackQuery) => {
   const action = callbackQuery.data;
   const state = userStates[chatId];
 
-  if (!state?.pendingTransaction) return;
+  if (state?.pendingTransaction && (action === 'confirm_transaction' || action === 'cancel_transaction')) {
+    try {
+      await bot.deleteMessage(chatId, state.pendingTransaction.messageId);
 
-  try {
-    await bot.deleteMessage(chatId, state.pendingTransaction.messageId);
+      if (action === 'cancel_transaction') {
+        await bot.sendMessage(chatId, '❌ Transaction cancelled.');
+        const { pendingTransaction, ...remainingState } = userStates[chatId];
+        userStates[chatId] = remainingState;
+        return;
+      }
 
-    if (action === 'cancel_transaction') {
-      await bot.sendMessage(chatId, '❌ Transaction cancelled.');
-      delete userStates[chatId];
-      return;
-    }
-
-    if (action === 'confirm_transaction') {
       const processingMsg = await bot.sendMessage(
         chatId,
         '💫 Processing transaction...\n\n_Please wait while we complete your transaction..._',
@@ -583,7 +607,7 @@ bot.on('callback_query', async (callbackQuery) => {
         const latestBlockhash = await connection.getLatestBlockhash();
         transaction.recentBlockhash = latestBlockhash.blockhash;
         transaction.feePayer = wallet.publicKey;
-
+        
         transaction.sign(wallet);
         const signature = await connection.sendRawTransaction(transaction.serialize());
 
@@ -594,7 +618,6 @@ bot.on('callback_query', async (callbackQuery) => {
         });
 
         await bot.deleteMessage(chatId, processingMsg.message_id);
-
         await bot.sendMessage(
           chatId,
           '✅ Transaction completed successfully!\n\n' +
@@ -608,15 +631,18 @@ bot.on('callback_query', async (callbackQuery) => {
         await bot.sendMessage(
           chatId,
           '❌ Transaction failed. Please verify your balance and try again.\n\n' +
-          'Error: ' + (txError instanceof Error ? txError.message : 'Unknown error'),
-          { parse_mode: 'Markdown' }
+          'Error: ' + (txError instanceof Error ? txError.message : 'Unknown error')
         );
       }
-    }
-    delete userStates[chatId];
 
-  } catch (error) {
-    console.error('Error handling callback:', error);
-    bot.sendMessage(chatId, '❌ An error occurred. Please try again.');
+      const { pendingTransaction, ...remainingState } = userStates[chatId];
+      userStates[chatId] = remainingState;
+
+    } catch (error) {
+      console.error('Error handling callback:', error);
+      bot.sendMessage(chatId, '❌ An error occurred. Please try again.');
+    }
+    return;
   }
+
 });

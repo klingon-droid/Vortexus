@@ -2,3 +2,5 @@
 dist
 node_modules
 .DS_Store
+dialect-bot-keypair.json
+dialect-keypair-base64.txt
