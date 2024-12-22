@@ -1,8 +1,9 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Copy } from "lucide-react";
 import { useState } from "react";
+import Image from "next/image";
 
 interface LandingPageProps {
   onStart: (message: string) => void;
@@ -13,8 +14,12 @@ export function LandingPage({ onStart }: LandingPageProps) {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim()) return;
-    onStart(input);
+    onStart(input.trim() || ""); // Allow clicking even if input is empty
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    setInput(text);
   };
 
   return (
@@ -26,6 +31,9 @@ export function LandingPage({ onStart }: LandingPageProps) {
     >
       {/* Optional Dark Overlay for Text Visibility */}
       <div className="absolute inset-0 bg-black/40"></div>
+      <div className="flex flex-col items-center justify-center h-[30rem]">
+        <Image src={"/linear.png"} alt="image" width={400} height={400} />
+      </div>
 
       {/* Content Container */}
       <div className="relative z-10 flex flex-col items-center">
@@ -36,44 +44,60 @@ export function LandingPage({ onStart }: LandingPageProps) {
           transition={{ delay: 0.2 }}
           className="text-6xl font-bold text-white mb-8 text-center"
         >
-          Ask Arcturus Anything
+          Ask <span className="font-bold text-violet-500 dark:text-violet-500">ARCTURUS ◎</span> Anything
         </motion.h1>
 
         {/* Form */}
-        <motion.form
-          initial={{ y: 20, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ delay: 0.4 }}
-          onSubmit={handleSubmit}
-          className="w-full max-w-2xl"
-        >
-          <div className="relative group">
-            {/* Input */}
-            <input
-              type="text"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder="Type here to take you to arcturus and start a new session..."
-              className="w-full bg-white/10 text-white placeholder-indigo-300 rounded-full px-6 py-4 pr-12 border border-indigo-300 focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500 transition-all"
-            />
-            {/* Submit Button */}
-            <button
-              type="submit"
-              className="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-full bg-indigo-600 text-white hover:bg-indigo-700 transition-all"
-            >
-              <ArrowRight className="w-5 h-5" />
-            </button>
-          </div>
-        </motion.form>
-
-        {/* Subtext */}
         <motion.div
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.6 }}
-          className="mt-8 text-indigo-200 text-center"
+          className="mt-8 text-indigo-200 text-center cursor-pointer"
+          onClick={handleSubmit}
         >
-          <p>Ask about minting NFTs, deploying tokens, performing DeFi actions, or checking your balance</p>
+          <p className="text-3xl font-semibold text-white hover:text-indigo-300 transition">
+            Let’s dive in <ArrowRight className="inline w-6 h-6" />
+          </p>
+        </motion.div>
+
+        {/* Example Prompts */}
+        <motion.div
+          initial={{ y: 20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 0.8 }}
+          className="bg-white/10 mt-6 p-6 rounded-lg shadow-lg w-full max-w-2xl text-center text-white"
+        >
+          <p className="text-lg mb-4 font-semibold">Copy any example Prompt:</p>
+          <ul className="space-y-4">
+            <li
+              className="flex items-center space-x-3 cursor-pointer hover:text-indigo-300"
+              onClick={() => copyToClipboard("Check my wallet balance")}
+            >
+              <Copy className="w-5 h-5" />
+              <span>Check my wallet balance</span>
+            </li>
+            <li
+              className="flex items-center space-x-3 cursor-pointer hover:text-indigo-300"
+              onClick={() => copyToClipboard("Create a token")}
+            >
+              <Copy className="w-5 h-5" />
+              <span>Create a token</span>
+            </li>
+            <li
+              className="flex items-center space-x-3 cursor-pointer hover:text-indigo-300"
+              onClick={() => copyToClipboard("Deploy an NFT collection")}
+            >
+              <Copy className="w-5 h-5" />
+              <span>Deploy an NFT collection</span>
+            </li>
+            <li
+              className="flex items-center space-x-3 cursor-pointer hover:text-indigo-300"
+              onClick={() => copyToClipboard("Deposit to a Meteora pool")}
+            >
+              <Copy className="w-5 h-5" />
+              <span>Deposit to a Meteora pool</span>
+            </li>
+          </ul>
         </motion.div>
       </div>
     </motion.div>

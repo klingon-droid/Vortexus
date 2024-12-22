@@ -1,5 +1,5 @@
 "use client";
-
+import React from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
@@ -9,6 +9,21 @@ import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { Connection } from "@solana/web3.js";
 import { VersionedTransaction } from '@solana/web3.js';
+import { Button } from "@mui/material";
+import { AnimatedTooltip } from "./ui/animated-tooltip";
+import { Home } from "lucide-react";
+
+const people = [
+  {
+    id: 1,
+    name: "This is ARCTURUS ◎",
+    designation: "Click on + start",
+    image:
+      "/linear.png",
+  },
+ 
+];
+
 
 interface Message {
   text: string;
@@ -29,13 +44,25 @@ export function ChatInterface() {
   const [loading, setLoading] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
-  useEffect(() => {
+    useEffect(() => {
     const storedSessions = JSON.parse(localStorage.getItem("chatSessions") || "[]");
-    setSessions(storedSessions);
-    if (storedSessions.length > 0) {
+  
+    if (storedSessions.length === 0) {
+      // If no sessions exist, create a new session
+      const newSession: ChatSession = {
+        id: Date.now().toString(),
+        name: "Session: New Chat",
+        messages: [],
+      };
+      setSessions([newSession]);
+      setCurrentSessionId(newSession.id);
+      localStorage.setItem("chatSessions", JSON.stringify([newSession]));
+    } else {
+      setSessions(storedSessions);
       setCurrentSessionId(storedSessions[0].id);
     }
   }, []);
+
 
   useEffect(() => {
     localStorage.setItem("chatSessions", JSON.stringify(sessions));
@@ -46,7 +73,7 @@ export function ChatInterface() {
   const createNewSession = () => {
     const newSession: ChatSession = {
       id: Date.now().toString(),
-      name: "New Chat",
+      name: "Sesion : New Chat",
       messages: [],
     };
     setSessions((prev) => [newSession, ...prev]);
@@ -191,6 +218,7 @@ export function ChatInterface() {
           <div className="w-1/4 bg-gray-800 border-r border-gray-700 flex flex-col">
             <div className="p-4 flex justify-between items-center">
               <h2 className="text-lg font-semibold">Chat Sessions</h2>
+              <AnimatedTooltip items={people} />
               <button
                 onClick={createNewSession}
                 className="bg-indigo-600 p-2 rounded hover:bg-indigo-700"
@@ -223,12 +251,22 @@ export function ChatInterface() {
         <div className={`flex-1 flex flex-col ${isSidebarOpen ? "pl-0" : "pl-4"}`}>
           {/* Header */}
           <div className="p-4 flex justify-between items-center border-b border-gray-700 bg-black/30">
-            <button
-              onClick={() => setIsSidebarOpen((prev) => !prev)}
-              className="bg-gray-800 p-2 rounded hover:bg-gray-700"
-            >
-              {isSidebarOpen ? <X size={16} /> : <Menu size={16} />}
-            </button>
+            <div className="flex items-center space-x-4">
+              <button
+                onClick={() => setIsSidebarOpen((prev) => !prev)}
+                className="bg-gray-800 p-2 rounded hover:bg-gray-700"
+              >
+                {isSidebarOpen ? <X size={16} /> : <Menu size={16} />}
+              </button>
+              <Button
+                href="/"
+                color="secondary"
+                variant="contained"
+                className="py-1 bg-gray-500 text-white rounded-lg hover:bg-indigo-700"
+              >
+                <Home/>
+              </Button>
+            </div>
             <div className="flex items-center gap-4">
               <Wallet className="text-indigo-400" />
               <div>
@@ -257,7 +295,7 @@ export function ChatInterface() {
                 <ReactMarkdown>{msg.text}</ReactMarkdown>
               </motion.div>
             ))}
-            {loading && <p className="text-gray-400">Typing...</p>}
+            {loading && <p className="text-gray-400">ARCTURUS ◎ is Typing...</p>}
           </div>
 
           {/* Input */}
