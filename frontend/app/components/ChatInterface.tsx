@@ -44,13 +44,25 @@ export function ChatInterface() {
   const [loading, setLoading] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
-  useEffect(() => {
+    useEffect(() => {
     const storedSessions = JSON.parse(localStorage.getItem("chatSessions") || "[]");
-    setSessions(storedSessions);
-    if (storedSessions.length > 0) {
+  
+    if (storedSessions.length === 0) {
+      // If no sessions exist, create a new session
+      const newSession: ChatSession = {
+        id: Date.now().toString(),
+        name: "Session: New Chat",
+        messages: [],
+      };
+      setSessions([newSession]);
+      setCurrentSessionId(newSession.id);
+      localStorage.setItem("chatSessions", JSON.stringify([newSession]));
+    } else {
+      setSessions(storedSessions);
       setCurrentSessionId(storedSessions[0].id);
     }
   }, []);
+
 
   useEffect(() => {
     localStorage.setItem("chatSessions", JSON.stringify(sessions));
