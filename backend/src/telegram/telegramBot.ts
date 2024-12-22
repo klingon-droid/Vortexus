@@ -1,6 +1,6 @@
 import TelegramBot from 'node-telegram-bot-api';
 import fetch from 'node-fetch';
-import { Keypair, Transaction, Connection, PublicKey, SystemProgram } from '@solana/web3.js';
+import { Keypair, Transaction, VersionedTransaction, Connection, PublicKey, SystemProgram } from '@solana/web3.js';
 import dotenv from 'dotenv';
 import crypto from 'crypto';
 import bcrypt from 'bcrypt';
@@ -621,16 +621,42 @@ bot.on('callback_query', async (callbackQuery) => {
         const privateKey = decrypt(walletResult.rows[0].private_key);
         const wallet = Keypair.fromSecretKey(Buffer.from(privateKey, 'base64'));
 
+        // Deserialize the transaction data
         const serializedTx = Buffer.from(state.pendingTransaction.data, 'base64');
-        const transaction = Transaction.from(serializedTx);
+        
+        // First try to deserialize as a versioned transaction
+        let transaction;
+        let isVersioned = true;
+        
+        try {
+          transaction = VersionedTransaction.deserialize(serializedTx);
+        } catch (e) {
+          // If versioned deserialization fails, try legacy format
+          isVersioned = false;
+          transaction = Transaction.from(serializedTx);
+        }
 
         const latestBlockhash = await connection.getLatestBlockhash();
-        transaction.recentBlockhash = latestBlockhash.blockhash;
-        transaction.feePayer = wallet.publicKey;
-        
-        transaction.sign(wallet);
-        const signature = await connection.sendRawTransaction(transaction.serialize());
 
+        if (isVersioned) {
+          // Handle versioned transaction
+          if (!transaction.message.recentBlockhash) {
+            transaction.message.recentBlockhash = latestBlockhash.blockhash;
+          }
+          transaction.sign([wallet]);
+        } else {
+          // Handle legacy transaction
+          transaction.recentBlockhash = latestBlockhash.blockhash;
+          transaction.feePayer = wallet.publicKey;
+          transaction.sign(wallet);
+        }
+
+        // Send the transaction
+        const signature = await connection.sendRawTransaction(
+          isVersioned ? transaction.serialize() : transaction.serialize()
+        );
+
+        // Wait for confirmation
         await connection.confirmTransaction({
           signature,
           blockhash: latestBlockhash.blockhash,
@@ -647,14 +673,28 @@ bot.on('callback_query', async (callbackQuery) => {
 
       } catch (txError) {
         console.error('Transaction error:', txError);
+        
+        // Enhanced error messaging
+        let errorMessage = '❌ Transaction failed. ';
+        
+        if (txError instanceof Error) {
+          // Format specific error messages for better user understanding
+          if (txError.message.includes('insufficient funds')) {
+            errorMessage += 'Insufficient funds to complete this transaction. Please check your balance.';
+          } else if (txError.message.includes('blockhash')) {
+            errorMessage += 'Transaction timeout. Please try again.';
+          } else {
+            errorMessage += `Error: ${txError.message}`;
+          }
+        } else {
+          errorMessage += 'An unexpected error occurred. Please try again.';
+        }
+
         await bot.deleteMessage(chatId, processingMsg.message_id);
-        await bot.sendMessage(
-          chatId,
-          '❌ Transaction failed. Please verify your balance and try again.\n\n' +
-          'Error: ' + (txError instanceof Error ? txError.message : 'Unknown error')
-        );
+        await bot.sendMessage(chatId, errorMessage);
       }
 
+      // Clean up the pending transaction state
       const { pendingTransaction, ...remainingState } = userStates[chatId];
       userStates[chatId] = remainingState;
 
@@ -662,7 +702,5 @@ bot.on('callback_query', async (callbackQuery) => {
       console.error('Error handling callback:', error);
       bot.sendMessage(chatId, '❌ An error occurred. Please try again.');
     }
-    return;
   }
-
 });
