@@ -12,7 +12,7 @@ export default function FeaturesSection() {
       >
         <div className="max-w-xs">
           <h2 className="text-left text-balance text-base md:text-xl lg:text-3xl font-semibold tracking-[-0.015em] text-white">
-             Illuminating your Solana experience. Prompt with ease & grace.
+             Illuminating your Solana experience.
           </h2>
           <p className="mt-4 text-left  text-base/6 text-neutral-200">
              Prompt with ease & grace.
@@ -40,7 +40,7 @@ export default function FeaturesSection() {
             Expore the possibilities of Solana with Arcturus.
           </h2>
           <p className="mt-4 max-w-[26rem] text-left  text-base/6 text-neutral-200">
-            Lets build the future of AI autonoumous and Defi Agents on Solana.
+            Use the web dapp or telegram chatbot to get started.
           </p>
         </div>
         <Image
