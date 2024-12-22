@@ -498,20 +498,17 @@ bot.on('message', async (msg) => {
   }
 
   try {
-    // Check wallet lock status
     if (await isWalletLocked(chatId)) {
       bot.sendMessage(chatId, 'Wallet is locked. /unlock to continue.');
       return;
     }
 
-    // Show processing message
     const processingMessage = await bot.sendMessage(
       chatId, 
       '🤔 Processing your request...\n\n_ARCTURUS is analyzing your message..._', 
       { parse_mode: 'Markdown' }
     );
 
-    // Get wallet information
     const walletResult = await db.query(
       'SELECT thread_id, public_key FROM user_wallets WHERE telegram_id = $1',
       [chatId]
@@ -525,15 +522,12 @@ bot.on('message', async (msg) => {
 
     const { thread_id, public_key } = walletResult.rows[0];
 
-    // Send message to AI agent
     const aiResponse = await sendMessageToAI(text, thread_id, public_key);
 
     await bot.deleteMessage(chatId, processingMessage.message_id);
 
-    // Transaction detection logic
     let transactionData = null;
 
-    // Check for structured transaction data
     if (aiResponse.output) {
       try {
         const outputData = typeof aiResponse.output === 'string' 
@@ -548,7 +542,6 @@ bot.on('message', async (msg) => {
       }
     }
 
-    // Fallback to regex parsing if needed
     if (!transactionData) {
       const transactionRegex = /Transaction Data: ([A-Za-z0-9+/=]+)/;
       const match = transactionRegex.exec(aiResponse.response);
@@ -557,23 +550,18 @@ bot.on('message', async (msg) => {
       }
     }
 
-    // Handle transaction if found
     if (transactionData) {
       try {
-        // Parse transaction for details
         const serializedTx = Buffer.from(transactionData, 'base64');
         let txType = 'Transaction';
         let additionalInfo = '';
 
         try {
-          // Attempt to parse transaction details
           const tx = VersionedTransaction.deserialize(serializedTx);
-          // Add logic here to parse transaction details and set txType and additionalInfo
         } catch (parseError) {
           console.log('Transaction parsing error:', parseError);
         }
 
-        // Send user-friendly confirmation message
         const confirmationMsg = await bot.sendMessage(
           chatId,
           `🔄 *New ${txType} Request*\n\n` +
@@ -591,7 +579,6 @@ bot.on('message', async (msg) => {
           }
         );
 
-        // Store transaction data
         userStates[chatId] = {
           ...userStates[chatId],
           pendingTransaction: {
@@ -608,7 +595,6 @@ bot.on('message', async (msg) => {
         );
       }
     } else {
-      // Send regular AI response if no transaction
       await bot.sendMessage(chatId, aiResponse.response, { parse_mode: 'Markdown' });
     }
 
@@ -622,7 +608,6 @@ bot.on('message', async (msg) => {
   }
 });
 
-// Callback handler for transaction confirmation/cancellation
 bot.on('callback_query', async (callbackQuery) => {
   const chatId = callbackQuery.message?.chat.id;
   if (!chatId || !callbackQuery.message) return;
@@ -632,7 +617,6 @@ bot.on('callback_query', async (callbackQuery) => {
 
   if (state?.pendingTransaction && (action === 'confirm_transaction' || action === 'cancel_transaction')) {
     try {
-      // Remove confirmation message
       await bot.deleteMessage(chatId, state.pendingTransaction.messageId);
 
       if (action === 'cancel_transaction') {
@@ -646,7 +630,6 @@ bot.on('callback_query', async (callbackQuery) => {
         return;
       }
 
-      // Show processing animation
       const processingMsg = await bot.sendMessage(
         chatId,
         '🔄 *Processing Transaction*\n\n' +
@@ -656,7 +639,6 @@ bot.on('callback_query', async (callbackQuery) => {
       );
 
       try {
-        // Get wallet credentials
         const walletResult = await db.query(
           'SELECT private_key FROM user_wallets WHERE telegram_id = $1',
           [chatId]
@@ -664,24 +646,19 @@ bot.on('callback_query', async (callbackQuery) => {
         const privateKey = decrypt(walletResult.rows[0].private_key);
         const wallet = Keypair.fromSecretKey(Buffer.from(privateKey, 'base64'));
 
-        // Process transaction
         const serializedTx = Buffer.from(state.pendingTransaction.data, 'base64');
         let transaction;
         let isVersioned = true;
 
         try {
-          // Try versioned transaction first
           transaction = VersionedTransaction.deserialize(serializedTx);
         } catch (e) {
-          // Fall back to legacy transaction
           isVersioned = false;
           transaction = Transaction.from(serializedTx);
         }
 
-        // Get latest blockhash
         const latestBlockhash = await connection.getLatestBlockhash();
 
-        // Sign transaction based on type
         if (isVersioned) {
           if (!transaction.message.recentBlockhash) {
             transaction.message.recentBlockhash = latestBlockhash.blockhash;
@@ -693,7 +670,6 @@ bot.on('callback_query', async (callbackQuery) => {
           transaction.sign(wallet);
         }
 
-        // Send and confirm transaction
         const signature = await connection.sendRawTransaction(
           isVersioned ? transaction.serialize() : transaction.serialize()
         );
@@ -704,7 +680,6 @@ bot.on('callback_query', async (callbackQuery) => {
           lastValidBlockHeight: latestBlockhash.lastValidBlockHeight,
         });
 
-        // Show success message
         await bot.deleteMessage(chatId, processingMsg.message_id);
         await bot.sendMessage(
           chatId,
@@ -719,8 +694,7 @@ bot.on('callback_query', async (callbackQuery) => {
 
       } catch (txError) {
         console.error('Transaction error:', txError);
-        
-        // Format error message
+    
         let errorMessage = '❌ *Transaction Failed*\n\n';
         
         if (txError instanceof Error) {
@@ -742,7 +716,6 @@ bot.on('callback_query', async (callbackQuery) => {
         await bot.sendMessage(chatId, errorMessage, { parse_mode: 'Markdown' });
       }
 
-      // Clean up state
       const { pendingTransaction, ...remainingState } = userStates[chatId];
       userStates[chatId] = remainingState;
 
