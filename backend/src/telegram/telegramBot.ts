@@ -26,6 +26,15 @@ interface UserState {
   lastMessageId?: number;
 }
 
+interface ThreadContext {
+  hasAcknowledgedWallet: boolean;
+  lastResponse?: string;
+}
+
+const threadContexts: {
+  [threadId: string]: ThreadContext;
+} = {};
+
 const userStates: {
   [chatId: number]: UserState;
 } = {};
@@ -100,14 +109,15 @@ async function sendMessageToAI(
   publicKey: string | null
 ): Promise<AiAgentResponse> {
   try {
+    const requestBody = {
+      message,
+      threadId,
+      ...((!threadId) && { walletAddress: publicKey })
+    };
     const response = await fetch(AI_AGENT_API_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        message,
-        threadId,
-        walletAddress: publicKey
-      }),
+      body: JSON.stringify(requestBody),
     });
 
     if (!response.ok) {
