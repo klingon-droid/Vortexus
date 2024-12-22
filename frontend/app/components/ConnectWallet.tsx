@@ -8,7 +8,6 @@ import Button from "@mui/material/Button";
 
 export function ConnectWallet() {
   const [isClient, setIsClient] = useState(false);
-
   // Ensure this component renders only on the client side
   useEffect(() => {
     setIsClient(true);
@@ -31,7 +30,7 @@ export function ConnectWallet() {
         </motion.div>
         <h3 className="text-white font-semibold text-lg">Connect Your Wallet</h3>
         <p className="text-gray-400 text-sm text-center max-w-[240px]">
-          Connect your Solana wallet to interact with the chat assistant.
+          Connect your Solana wallet to interact with ARCTURUS ◎.
         </p>
         {/* Render WalletMultiButton only on the client side */}
         {isClient && <WalletMultiButton />}
@@ -40,7 +39,7 @@ export function ConnectWallet() {
             href="/Chat"
             color="secondary"
             variant="contained"
-            className="w-full bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+            className="w-full bg-gray-500 text-white rounded-lg hover:bg-indigo-700"
           >
             Proceed to Chat
           </Button>
