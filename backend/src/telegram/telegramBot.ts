@@ -523,6 +523,7 @@ bot.on('message', async (msg) => {
 
     const aiResponse = await sendMessageToAI(text, thread_id, public_key);
 
+    // Store thread ID if provided
     if (aiResponse.threadId) {
       await db.query(
         'UPDATE user_wallets SET thread_id = $1 WHERE telegram_id = $2',
@@ -532,41 +533,59 @@ bot.on('message', async (msg) => {
 
     await bot.deleteMessage(chatId, processingMessage.message_id);
 
-    if (!aiResponse.output?.transaction) {
-      await bot.sendMessage(chatId, aiResponse.response, { parse_mode: 'Markdown' });
-      return;
+    // Check if we have an output field that needs parsing
+    if (aiResponse.output) {
+      let outputData;
+      try {
+        // Try to parse the output as JSON
+        outputData = typeof aiResponse.output === 'string' 
+          ? JSON.parse(aiResponse.output) 
+          : aiResponse.output;
+
+        // Check if this is a transaction
+        if (outputData.success && outputData.transaction) {
+          // We have a valid transaction to process
+          const confirmationMsg = await bot.sendMessage(
+            chatId,
+            `${aiResponse.response}\n\n` +
+            '💼 Transaction ready to process\n' +
+            'Please confirm if you want to proceed with this transaction.',
+            {
+              parse_mode: 'Markdown',
+              reply_markup: {
+                inline_keyboard: [
+                  [
+                    { text: '✅ Confirm Transaction', callback_data: 'confirm_transaction' },
+                    { text: '❌ Cancel', callback_data: 'cancel_transaction' }
+                  ]
+                ]
+              }
+            }
+          );
+
+          // Store the transaction data for processing
+          userStates[chatId] = {
+            ...userStates[chatId],
+            pendingTransaction: {
+              data: outputData.transaction,
+              messageId: confirmationMsg.message_id
+            }
+          };
+          return;
+        }
+      } catch (parseError) {
+        // If parsing fails, treat it as a regular message
+        console.log('Output parsing failed, treating as regular message:', parseError);
+      }
     }
 
-    const confirmationMsg = await bot.sendMessage(
-      chatId,
-      `${aiResponse.response}\n\n` +
-      '💼 Transaction ready to process\n' +
-      'Please confirm if you want to proceed with this transaction.',
-      {
-        parse_mode: 'Markdown',
-        reply_markup: {
-          inline_keyboard: [
-            [
-              { text: '✅ Confirm Transaction', callback_data: 'confirm_transaction' },
-              { text: '❌ Cancel', callback_data: 'cancel_transaction' }
-            ]
-          ]
-        }
-      }
-    );
+    // If we reach here, it's a regular message
+    await bot.sendMessage(chatId, aiResponse.response, { parse_mode: 'Markdown' });
 
-    userStates[chatId] = {
-      ...userStates[chatId],
-      pendingTransaction: {
-        data: aiResponse.output.transaction,
-        messageId: confirmationMsg.message_id
-      }
-    };
-
-  } catch (error) {
+} catch (error) {
     console.error('Error handling message:', error);
     bot.sendMessage(chatId, '❌ An error occurred. Please try again later.');
-  }
+}
 });
 
 bot.on('callback_query', async (callbackQuery) => {
