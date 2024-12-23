@@ -3,27 +3,24 @@ import React from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Wallet, ArrowRight, Plus, Trash2, Menu, X } from "lucide-react";
+import { Wallet, ArrowRight, Plus, Trash2, Menu, X, LogOut, Home } from "lucide-react";
 import ReactMarkdown from "react-markdown";
-import { ToastContainer, toast } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
+import { ToastContainer, toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 import { Connection } from "@solana/web3.js";
-import { VersionedTransaction } from '@solana/web3.js';
+import { VersionedTransaction } from "@solana/web3.js";
 import { Button } from "@mui/material";
 import { AnimatedTooltip } from "./ui/animated-tooltip";
-import { Home } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 const people = [
   {
     id: 1,
     name: "This is ARCTURUS ◎",
     designation: "Click on + start",
-    image:
-      "/linear.png",
+    image: "/linear.png",
   },
- 
 ];
-
 
 interface Message {
   text: string;
@@ -37,32 +34,21 @@ interface ChatSession {
 }
 
 export function ChatInterface() {
-  const { publicKey, sendTransaction, signTransaction } = useWallet();
+  const { publicKey, sendTransaction, signTransaction, disconnect } = useWallet();
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const router = useRouter(); // For navigation
 
-    useEffect(() => {
+  useEffect(() => {
     const storedSessions = JSON.parse(localStorage.getItem("chatSessions") || "[]");
-  
-    if (storedSessions.length === 0) {
-      // If no sessions exist, create a new session
-      const newSession: ChatSession = {
-        id: Date.now().toString(),
-        name: "Session: New Chat",
-        messages: [],
-      };
-      setSessions([newSession]);
-      setCurrentSessionId(newSession.id);
-      localStorage.setItem("chatSessions", JSON.stringify([newSession]));
-    } else {
-      setSessions(storedSessions);
+    setSessions(storedSessions);
+    if (storedSessions.length > 0) {
       setCurrentSessionId(storedSessions[0].id);
     }
   }, []);
-
 
   useEffect(() => {
     localStorage.setItem("chatSessions", JSON.stringify(sessions));
@@ -73,7 +59,7 @@ export function ChatInterface() {
   const createNewSession = () => {
     const newSession: ChatSession = {
       id: Date.now().toString(),
-      name: "Sesion : New Chat",
+      name: "Session: New Chat",
       messages: [],
     };
     setSessions((prev) => [newSession, ...prev]);
@@ -87,10 +73,60 @@ export function ChatInterface() {
     }
   };
 
+  const handleWalletDisconnect = async () => {
+    try {
+      await disconnect(); // Disconnect the wallet
+      toast.success("Wallet disconnected successfully.");
+      router.push("/"); // Redirect to the homepage
+    } catch (error) {
+      console.error("Error disconnecting wallet:", error);
+      toast.error("Failed to disconnect the wallet.");
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!input.trim() || !currentSessionId) return;
+
+    const userMessage: Message = { text: input, isBot: false };
+
+    setSessions((prev) =>
+      prev.map((session) =>
+        session.id === currentSessionId
+          ? {
+              ...session,
+              name: session.messages.length === 0 ? input : session.name,
+              messages: [...session.messages, userMessage],
+            }
+          : session
+      )
+    );
+    setInput(""); // Clear input field
+
+    try {
+      const botResponse = await sendMessageToAPI(input);
+      setSessions((prev) =>
+        prev.map((session) =>
+          session.id === currentSessionId
+            ? {
+                ...session,
+                messages: [
+                  ...session.messages,
+                  { text: botResponse, isBot: true },
+                ],
+              }
+            : session
+        )
+      );
+    } catch (error: any) {
+      console.error("Error during handleSubmit:", error.message);
+      toast.error("Failed to process your request.");
+    }
+  };
+
   const sendMessageToAPI = async (message: string) => {
     setLoading(true);
     try {
-      // Fetch data from your backend
       const response = await fetch("https://solana-agent.onrender.com/prompt", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -101,24 +137,18 @@ export function ChatInterface() {
       });
 
       const data = await response.json();
-      console.log("API Response:", data);
 
-      // Check if the response has transaction data
       if (data.output) {
         let outputData;
 
         try {
           outputData = JSON.parse(data.output);
-        } catch (e) {
-          // If parsing fails, assume it's general chat output
+        } catch {
           return data.output;
         }
 
         if (outputData && outputData.success && outputData.transaction) {
-          const transactionData = outputData.transaction; // Base64 encoded transaction data
-
-          // Decode and handle the transaction
-          const transactionBuffer = Buffer.from(transactionData, "base64");
+          const transactionBuffer = Buffer.from(outputData.transaction, "base64");
           const versionedTransaction = VersionedTransaction.deserialize(transactionBuffer);
 
           if (!publicKey) {
@@ -132,25 +162,22 @@ export function ChatInterface() {
           }
 
           toast.info("Please sign the transaction in your wallet.");
-
-          // Sign the transaction
           const signedTransaction = await signTransaction(versionedTransaction);
+          const connection = new Connection(
+            `https://mainnet.helius-rpc.com/?api-key=${process.env.NEXT_PUBLIC_HELIUS_API_KEY}`,
+            "confirmed"
+          );
 
-          // Use Helius RPC endpoint
-          const heliusEndpoint = `https://mainnet.helius-rpc.com/?api-key=${process.env.NEXT_PUBLIC_HELIUS_API_KEY}`;
-          const connection = new Connection(heliusEndpoint, "confirmed");
-
-          // Send the transaction
-          const txid = await connection.sendRawTransaction(signedTransaction.serialize());
+          const txid = await connection.sendRawTransaction(
+            signedTransaction.serialize()
+          );
 
           toast.success(`Transaction sent successfully! TXID: ${txid}`);
           return `Transaction sent successfully! TXID: ${txid}`;
         }
       }
 
-      // If no transaction data, assume it's a normal message
       return data.response || "Received an empty response.";
-
     } catch (error: any) {
       console.error("API Error:", error.message);
       toast.error(`Error: ${error.message}`);
@@ -160,60 +187,11 @@ export function ChatInterface() {
     }
   };
 
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!input.trim() || !currentSessionId) return;
-
-    const userMessage: Message = { text: input, isBot: false };
-
-    // Immediately update the session to display the user's message
-    setSessions((prev) =>
-        prev.map((session) =>
-            session.id === currentSessionId
-                ? {
-                    ...session,
-                    name: session.messages.length === 0 ? input : session.name,
-                    messages: [...session.messages, userMessage],
-                }
-                : session
-        )
-    );
-    setInput(""); // Clear input field
-
-    try {
-        // Send message to API and process the transaction
-        const botResponse = await sendMessageToAPI(input);
-
-        // Update chat session with the bot's response
-        setSessions((prev) =>
-            prev.map((session) =>
-                session.id === currentSessionId
-                    ? {
-                        ...session,
-                        messages: [
-                            ...session.messages,
-                            { text: botResponse, isBot: true },
-                        ],
-                    }
-                    : session
-            )
-        );
-    } catch (error: any) {
-        console.error("Error during handleSubmit:", error.message);
-        toast.error("Failed to process your request.");
-    }
-};
-
   return (
     <div className="relative flex h-screen text-white">
-      <ToastContainer /> {/* Toast notification container */}
-      {/* Background Blur Image */}
+      <ToastContainer />
       <div className="absolute inset-0 bg-[url('/background.jpg')] bg-cover bg-center backdrop-blur-lg z-0"></div>
-
-      {/* Chat Interface Content */}
       <div className="relative flex z-10 h-full w-full">
-        {/* Sidebar */}
         {isSidebarOpen && (
           <div className="w-1/4 bg-gray-800 border-r border-gray-700 flex flex-col">
             <div className="p-4 flex justify-between items-center">
@@ -231,8 +209,11 @@ export function ChatInterface() {
                 <div
                   key={session.id}
                   onClick={() => setCurrentSessionId(session.id)}
-                  className={`p-2 cursor-pointer flex justify-between items-center ${session.id === currentSessionId ? "bg-indigo-600" : "hover:bg-gray-700"
-                    }`}
+                  className={`p-2 cursor-pointer flex justify-between items-center ${
+                    session.id === currentSessionId
+                      ? "bg-indigo-600"
+                      : "hover:bg-gray-700"
+                  }`}
                 >
                   <span className="truncate">{session.name}</span>
                   <button
@@ -246,10 +227,9 @@ export function ChatInterface() {
             </div>
           </div>
         )}
-
-        {/* Main Chat Window */}
-        <div className={`flex-1 flex flex-col ${isSidebarOpen ? "pl-0" : "pl-4"}`}>
-          {/* Header */}
+        <div
+          className={`flex-1 flex flex-col ${isSidebarOpen ? "pl-0" : "pl-4"}`}
+        >
           <div className="p-4 flex justify-between items-center border-b border-gray-700 bg-black/30">
             <div className="flex items-center space-x-4">
               <button
@@ -264,7 +244,7 @@ export function ChatInterface() {
                 variant="contained"
                 className="py-1 bg-gray-500 text-white rounded-lg hover:bg-indigo-700"
               >
-                <Home/>
+                <Home />
               </Button>
             </div>
             <div className="flex items-center gap-4">
@@ -277,28 +257,36 @@ export function ChatInterface() {
                   Wallet: {publicKey ? publicKey.toBase58() : "Not connected"}
                 </p>
               </div>
+              <button
+                onClick={handleWalletDisconnect}
+                className="bg-red-600 p-2 rounded hover:bg-red-700 flex items-center"
+              >
+                <LogOut className="mr-2" />
+                Disconnect
+              </button>
             </div>
           </div>
 
-          {/* Chat Messages */}
           <div className="flex-1 overflow-y-auto p-4 space-y-4">
             {currentSession?.messages.map((msg, idx) => (
               <motion.div
                 key={idx}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className={`p-3 rounded-lg break-words w-fit max-w-full sm:max-w-md ${msg.isBot
-                  ? "bg-gray-700 text-gray-200"
-                  : "bg-indigo-600 text-white ml-auto"
-                  }`}
+                className={`p-3 rounded-lg break-words w-fit max-w-full sm:max-w-md ${
+                  msg.isBot
+                    ? "bg-gray-700 text-gray-200"
+                    : "bg-indigo-600 text-white ml-auto"
+                }`}
               >
                 <ReactMarkdown>{msg.text}</ReactMarkdown>
               </motion.div>
             ))}
-            {loading && <p className="text-gray-400">ARCTURUS ◎ is Typing...</p>}
+            {loading && (
+              <p className="text-gray-400">ARCTURUS ◎ is Typing...</p>
+            )}
           </div>
 
-          {/* Input */}
           <form onSubmit={handleSubmit} className="p-4 border-t border-gray-700">
             <div className="flex items-center gap-2">
               <input
