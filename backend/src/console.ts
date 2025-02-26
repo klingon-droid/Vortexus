@@ -41,7 +41,7 @@ async function chat(thread: Thread, assistant: Assistant): Promise<void> {
       const run = await createRun(client, thread, assistant.id);
       const result = await performRun(run, client, thread);
 
-      console.log('\nArcturus:', result.response);
+      console.log('\nVortexus:', result.response);
       console.log('output:', result.output);
     } catch (error) {
       console.error('Error during chat:', error instanceof Error ? error.message : 'Unknown error');

@@ -30,7 +30,7 @@ export function ConnectWallet() {
         </motion.div>
         <h3 className="text-white font-semibold text-lg">Connect Your Wallet</h3>
         <p className="text-gray-400 text-sm text-center max-w-[240px]">
-          Connect your Solana wallet to interact with ARCTURUS ◎.
+          Connect your Solana wallet to interact with Vortexus.
         </p>
         {/* Render WalletMultiButton only on the client side */}
         {isClient && <WalletMultiButton />}

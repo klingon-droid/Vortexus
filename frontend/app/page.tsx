@@ -4,7 +4,6 @@ import { useEffect, useRef, useState } from "react";
 import { TypewriterEffectSmoothDemo } from "./components/writer";
 import { FloatingDock } from "./components/ui/floating-dock";
 import {
-  IconBrandGithub,
   IconBrandX,
   IconRobot,
   IconBrandTelegram,
@@ -37,14 +36,7 @@ export default function Home() {
       icon: (
         <IconBrandX className="h-full w-full text-neutral-500 dark:text-neutral-300" />
       ),
-      href: "https://x.com/arcturus_sol",
-    },
-    {
-      title: "GitHub",
-      icon: (
-        <IconBrandGithub className="h-full w-full text-neutral-500 dark:text-neutral-300" />
-      ),
-      href: "https://github.com/dimitrov-d/arcturus",
+      href: "https://x.com/VortexusAI",
     },
   ];
 

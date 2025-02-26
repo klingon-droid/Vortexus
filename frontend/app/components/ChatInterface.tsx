@@ -16,7 +16,7 @@ import { useRouter } from "next/navigation";
 const people = [
   {
     id: 1,
-    name: "This is ARCTURUS ◎",
+    name: "This is Vortexus",
     designation: "Click on + start",
     image: "/linear.png",
   },
@@ -283,7 +283,7 @@ export function ChatInterface() {
               </motion.div>
             ))}
             {loading && (
-              <p className="text-gray-400">ARCTURUS ◎ is Typing...</p>
+              <p className="text-gray-400">Vortexus is Typing...</p>
             )}
           </div>
 

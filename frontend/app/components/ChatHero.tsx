@@ -44,7 +44,7 @@ export function LandingPage({ onStart }: LandingPageProps) {
           transition={{ delay: 0.2 }}
           className="text-6xl font-bold text-white mb-8 text-center"
         >
-          Ask <span className="text-violet-500 dark:text-violet-500">Arcturus</span> Anything
+          Ask <span className="text-violet-500 dark:text-violet-500">Vortexus</span> Anything
         </motion.h1>
 
         {/* Form */}
@@ -56,7 +56,7 @@ export function LandingPage({ onStart }: LandingPageProps) {
           onClick={handleSubmit}
         >
           <p className="text-3xl font-semibold text-white hover:text-indigo-300 transition">
-            Let’s dive in <ArrowRight className="inline w-6 h-6" />
+            Let's dive in <ArrowRight className="inline w-6 h-6" />
           </p>
         </motion.div>
 

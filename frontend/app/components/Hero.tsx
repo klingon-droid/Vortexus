@@ -10,7 +10,7 @@ export function FlipWordsDemo() {
         Solana is
         <FlipWords words={words} /> <br />
         <div className="text-white">
-          with <span className="font-bold text-violet-500 dark:text-violet-500">ARCTURUS ◎</span>
+          with <span className="font-bold text-violet-500 dark:text-violet-500">Vortexus</span>
         </div>
       </div>
     </div>

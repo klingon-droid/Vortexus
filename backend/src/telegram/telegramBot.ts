@@ -515,7 +515,7 @@ bot.on('message', async (msg) => {
 
     const processingMessage = await bot.sendMessage(
       chatId, 
-      '🤔 Processing your request...\n\n_ARCTURUS is analyzing your message..._', 
+      '🤔 Processing your request...\n\n_VORTEXUS is analyzing your message..._', 
       { parse_mode: 'Markdown' }
     );
 

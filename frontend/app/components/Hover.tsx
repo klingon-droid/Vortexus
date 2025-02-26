@@ -31,13 +31,13 @@ export default function FeaturesSection() {
         AI x Decentralized Finanance.
         </h2>
         <p className="mt-4 max-w-[26rem] text-left  text-base/6 text-neutral-200">
-          Command Arcturus with specififc requests to navigate the blockchain. 
+          Command Vortexus with specififc requests to navigate the blockchain. 
         </p>
       </WobbleCard>
       <WobbleCard containerClassName="col-span-1 lg:col-span-3 bg-grey-900 min-h-[500px] lg:min-h-[600px] xl:min-h-[300px]">
         <div className="max-w-sm">
           <h2 className="max-w-sm md:max-w-lg  text-left text-balance text-base md:text-xl lg:text-3xl font-semibold tracking-[-0.015em] text-white">
-            Expore the possibilities of Solana with Arcturus.
+            Expore the possibilities of Solana with Vortexus.
           </h2>
           <p className="mt-4 max-w-[26rem] text-left  text-base/6 text-neutral-200">
             Use the web dapp or telegram chatbot to get started.
