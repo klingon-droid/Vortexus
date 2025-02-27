@@ -29,7 +29,7 @@ export default function Home() {
       icon: (
         <IconBrandTelegram className="h-full w-full text-neutral-500 dark:text-neutral-300" />
       ),
-      href: "https://t.me/arcturusAI_bot",
+      href: "https://t.me/vvvortexus_bot",
     },
     {
       title: "X",
