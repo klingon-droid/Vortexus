@@ -34,7 +34,7 @@ export function TypewriterEffectSmoothDemo() {
             Vortexus Web
           </button>
         </Link>
-        <Link href="https://t.me/arcturusAI_bot">
+        <Link href="https://t.me/vvvortexus_bot">
           <button className="w-40 h-10 rounded-xl bg-violet-500 text-white border-transparent text-sm">
             Vortexus Telegram
           </button>

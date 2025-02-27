@@ -43,9 +43,21 @@ const app = express();
 app.use(express.json());
 
 const bot = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN, {
-  webHook: {
-    port: undefined,
+  polling: {
+    interval: 2000, // Poll every 2 seconds
+    autoStart: true,
+    params: {
+      timeout: 10 // Higher timeout value
+    }
   },
+  request: {
+    proxy: undefined, // Set to a proxy if needed in your environment
+    agentOptions: {
+      keepAlive: true,
+      keepAliveMsecs: 10000,
+      timeout: 60000 // Higher timeout for requests
+    }
+  }
 });
 const db = new Pool({ connectionString: process.env.DATABASE_URL });
 const connection = new Connection(process.env.SOLANA_URL!);
@@ -53,6 +65,19 @@ const IV_LENGTH = 16;
 const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY!;
 const ENCRYPTION_ALGORITHM = process.env.ENCRYPTION_ALGORITHM;
 const AI_AGENT_API_URL = process.env.AI_AGENT_API_URL!;
+
+// Set up commands for Telegram UI hamburger menu
+bot.setMyCommands([
+  { command: 'start', description: 'Initialize a new Solana wallet' },
+  { command: 'help', description: 'Display complete list of commands & information' },
+  { command: 'lock', description: 'Lock your wallet or set a password' },
+  { command: 'unlock', description: 'Unlock your wallet' },
+  { command: 'checkaddress', description: 'View your wallet\'s public address' },
+  { command: 'balance', description: 'Check your wallet balance' },
+  { command: 'transfer', description: 'Send SOL to another wallet' }
+]).catch(error => {
+  console.error('Error setting bot commands:', error);
+});
 
 app.get('/', (req, res) => {
   res.status(200).send('Solana Bot Service is running');
@@ -62,13 +87,8 @@ app.get('/health', (req, res) => {
   res.status(200).json({
     status: 'healthy',
     timestamp: new Date().toISOString(),
-    botWebhookUrl: `https://solana-agent-f9p2.onrender.com/webhook/${process.env.TELEGRAM_BOT_TOKEN}`,
+    botMode: 'polling'
   });
-});
-
-app.post(`/webhook/${process.env.TELEGRAM_BOT_TOKEN}`, (req, res) => {
-  bot.processUpdate(req.body);
-  res.sendStatus(200);
 });
 
 const PORT = process.env.PORT || 4000;
@@ -76,12 +96,9 @@ const PORT = process.env.PORT || 4000;
 app.listen(PORT, async () => {
   try {
     console.log(`Server is running on port ${PORT}`);
-
-    const webhookUrl = `https://solana-agent-f9p2.onrender.com/webhook/${process.env.TELEGRAM_BOT_TOKEN}`;
-    await bot.setWebHook(webhookUrl);
-    console.log('Webhook set successfully:', webhookUrl);
+    console.log('Bot is running in polling mode');
   } catch (error) {
-    console.error('Error setting webhook:', error);
+    console.error('Error starting server:', error);
   }
 });
 
@@ -133,7 +150,7 @@ async function sendMessageToAI(
 
 function encrypt(text: string): string {
   const iv = crypto.randomBytes(IV_LENGTH);
-  const cipher = crypto.createCipheriv(ENCRYPTION_ALGORITHM, Buffer.from(ENCRYPTION_KEY, 'utf-8'), iv);
+  const cipher = crypto.createCipheriv(ENCRYPTION_ALGORITHM, Buffer.from(ENCRYPTION_KEY, 'hex'), iv);
   const encrypted = Buffer.concat([cipher.update(text), cipher.final()]);
   return `${iv.toString('hex')}:${encrypted.toString('hex')}`;
 }
@@ -142,7 +159,7 @@ function decrypt(text: string): string {
   const [iv, encryptedText] = text.split(':');
   const decipher = crypto.createDecipheriv(
     ENCRYPTION_ALGORITHM,
-    Buffer.from(ENCRYPTION_KEY, 'utf-8'),
+    Buffer.from(ENCRYPTION_KEY, 'hex'),
     Buffer.from(iv, 'hex'),
   );
   const decrypted = Buffer.concat([decipher.update(Buffer.from(encryptedText, 'hex')), decipher.final()]);
