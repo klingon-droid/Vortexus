@@ -66,6 +66,19 @@ const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY!;
 const ENCRYPTION_ALGORITHM = process.env.ENCRYPTION_ALGORITHM;
 const AI_AGENT_API_URL = process.env.AI_AGENT_API_URL!;
 
+// Set up commands for Telegram UI hamburger menu
+bot.setMyCommands([
+  { command: 'start', description: 'Initialize a new Solana wallet' },
+  { command: 'help', description: 'Display complete list of commands & information' },
+  { command: 'lock', description: 'Lock your wallet or set a password' },
+  { command: 'unlock', description: 'Unlock your wallet' },
+  { command: 'checkaddress', description: 'View your wallet\'s public address' },
+  { command: 'balance', description: 'Check your wallet balance' },
+  { command: 'transfer', description: 'Send SOL to another wallet' }
+]).catch(error => {
+  console.error('Error setting bot commands:', error);
+});
+
 app.get('/', (req, res) => {
   res.status(200).send('Solana Bot Service is running');
 });
