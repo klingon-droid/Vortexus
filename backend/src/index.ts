@@ -1,6 +1,6 @@
 import express from 'express';
 import 'dotenv/config';
-// import './telegram/telegramBot';
+import './telegram/telegramBot';
 import OpenAI from 'openai';
 import helmet from 'helmet';
 import cors from 'cors';
