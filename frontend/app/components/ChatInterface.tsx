@@ -33,22 +33,139 @@ interface ChatSession {
   messages: Message[];
 }
 
-export function ChatInterface() {
+interface ChatInterfaceProps {
+  initialMessage?: string;
+}
+
+// Define API endpoint using our local proxy
+const LOCAL_PROXY_ENDPOINT = "/api/proxy";
+// Keep the original endpoint for reference or direct use if needed
+const BACKEND_API_ENDPOINT = process.env.NEXT_PUBLIC_BACKEND_API_URL || "https://d4b6-41-184-168-89.ngrok-free.app/prompt";
+// Use the local proxy by default to avoid CORS issues
+const API_ENDPOINT = LOCAL_PROXY_ENDPOINT;
+
+export function ChatInterface({ initialMessage = "" }: ChatInterfaceProps) {
   const { publicKey, sendTransaction, signTransaction, disconnect } = useWallet();
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
-  const [input, setInput] = useState("");
+  const [input, setInput] = useState(initialMessage);
   const [loading, setLoading] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const router = useRouter(); // For navigation
+  const [diagnosticInfo, setDiagnosticInfo] = useState<{
+    apiEndpoint: string;
+    backendEndpoint: string;
+    connected: boolean;
+    lastError: string | null;
+  }>({
+    apiEndpoint: API_ENDPOINT,
+    backendEndpoint: BACKEND_API_ENDPOINT,
+    connected: false,
+    lastError: null
+  });
+  const [showDiagnostics, setShowDiagnostics] = useState(false);
+
+  // Check API connectivity on component mount
+  useEffect(() => {
+    const checkApiConnectivity = async () => {
+      console.log("Checking API connectivity...");
+      try {
+        const response = await fetch(API_ENDPOINT, {
+          method: "HEAD",
+          headers: { "Content-Type": "application/json" }
+        });
+        setDiagnosticInfo({
+          apiEndpoint: API_ENDPOINT,
+          backendEndpoint: BACKEND_API_ENDPOINT,
+          connected: response.ok,
+          lastError: null
+        });
+        console.log(`API connectivity check: ${response.ok ? 'Success' : 'Failed'}`);
+      } catch (error: any) {
+        console.error("API connectivity check failed:", error.message);
+        setDiagnosticInfo({
+          apiEndpoint: API_ENDPOINT,
+          backendEndpoint: BACKEND_API_ENDPOINT,
+          connected: false,
+          lastError: `API connection failed: ${error.message}`
+        });
+      }
+    };
+    
+    checkApiConnectivity();
+  }, []);
+
+  // Toggle diagnostics panel (for developers/administrators)
+  const toggleDiagnostics = () => {
+    setShowDiagnostics(prev => !prev);
+  };
 
   useEffect(() => {
     const storedSessions = JSON.parse(localStorage.getItem("chatSessions") || "[]");
     setSessions(storedSessions);
+    
+    // Set current session if there are existing sessions
     if (storedSessions.length > 0) {
       setCurrentSessionId(storedSessions[0].id);
+    } else if (initialMessage) {
+      // If we have an initial message but no sessions, create a new session
+      const newSession = createNewSession();
+      // We'll handle sending the initial message after the component is fully mounted
     }
   }, []);
+
+  // Effect to handle initial message after component is mounted and sessions are set up
+  useEffect(() => {
+    // Only run this effect if we have an initialMessage and a currentSessionId
+    if (initialMessage && currentSessionId) {
+      // Check if this session already has the initial message (to prevent duplicates on re-renders)
+      const currentSession = sessions.find(s => s.id === currentSessionId);
+      if (currentSession && currentSession.messages.length === 0) {
+        // Manually trigger the submit process for the initial message
+        const userMessage: Message = { text: initialMessage, isBot: false };
+        
+        // Add user message to the session
+        setSessions((prev) =>
+          prev.map((session) =>
+            session.id === currentSessionId
+              ? {
+                  ...session,
+                  name: initialMessage.substring(0, 30), // Use initial message as session name
+                  messages: [userMessage],
+                }
+              : session
+          )
+        );
+        
+        // Send the message to the API
+        const sendInitialMessage = async () => {
+          try {
+            const botResponse = await sendMessageToAPI(initialMessage);
+            setSessions((prev) =>
+              prev.map((session) =>
+                session.id === currentSessionId
+                  ? {
+                      ...session,
+                      messages: [
+                        ...session.messages,
+                        { text: botResponse, isBot: true },
+                      ],
+                    }
+                  : session
+              )
+            );
+          } catch (error: any) {
+            console.error("Error sending initial message:", error.message);
+            toast.error("Failed to process your initial message.");
+          }
+        };
+        
+        sendInitialMessage();
+        // Clear the initialMessage from the input field as it's been processed
+        setInput("");
+      }
+    }
+  }, [initialMessage, currentSessionId, sessions]);
 
   useEffect(() => {
     localStorage.setItem("chatSessions", JSON.stringify(sessions));
@@ -64,6 +181,7 @@ export function ChatInterface() {
     };
     setSessions((prev) => [newSession, ...prev]);
     setCurrentSessionId(newSession.id);
+    return newSession;
   };
 
   const deleteSession = (id: string) => {
@@ -125,9 +243,15 @@ export function ChatInterface() {
   };
 
   const sendMessageToAPI = async (message: string) => {
+    console.log("sendMessageToAPI called with message:", message);
+    console.log("Current wallet state:", publicKey ? publicKey.toBase58() : "not connected");
+    console.log("Using proxy API endpoint:", API_ENDPOINT);
+    console.log("Backend API endpoint:", BACKEND_API_ENDPOINT);
+    
     setLoading(true);
     try {
-      const response = await fetch("https://solana-agent.onrender.com/prompt", {
+      console.log("Sending request to proxy API...");
+      const response = await fetch(API_ENDPOINT, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -136,18 +260,55 @@ export function ChatInterface() {
         }),
       });
 
+      console.log("API response status:", response.status);
+      
+      // Handle non-successful response
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("Error response from proxy:", errorText);
+        
+        try {
+          // Try to parse the error as JSON
+          const errorJson = JSON.parse(errorText);
+          console.error("Structured error from proxy:", errorJson);
+          
+          if (errorJson.error) {
+            throw new Error(`Proxy error: ${errorJson.error}`);
+          }
+        } catch (parseError) {
+          // If parsing fails, use the raw error text
+          throw new Error(`API responded with status ${response.status}: ${errorText}`);
+        }
+      }
+      
       const data = await response.json();
+      console.log("API response data:", data);
+
+      // Add detailed logging about the response fields
+      console.log("data.response exists:", !!data.response);
+      console.log("data.response value:", data.response);
+      console.log("data.output exists:", !!data.output);
+      console.log("data.output value:", data.output);
+      
+      // Check if we got an error from the proxy
+      if (data.error) {
+        console.error("Error from proxy:", data.error);
+        throw new Error(`Proxy error: ${data.error}`);
+      }
 
       if (data.output) {
         let outputData;
 
         try {
           outputData = JSON.parse(data.output);
-        } catch {
+          console.log("Parsed output data:", outputData);
+        } catch (error) {
+          console.log("Failed to parse output data, returning raw output");
           return data.output;
         }
 
         if (outputData && outputData.success && outputData.transaction) {
+          console.log("Transaction data received, attempting to process");
           const transactionBuffer = Buffer.from(outputData.transaction, "base64");
           const versionedTransaction = VersionedTransaction.deserialize(transactionBuffer);
 
@@ -162,22 +323,30 @@ export function ChatInterface() {
           }
 
           toast.info("Please sign the transaction in your wallet.");
+          console.log("Requesting transaction signature");
           const signedTransaction = await signTransaction(versionedTransaction);
           const connection = new Connection(
             `https://mainnet.helius-rpc.com/?api-key=${process.env.NEXT_PUBLIC_HELIUS_API_KEY}`,
             "confirmed"
           );
 
-          const txid = await connection.sendRawTransaction(
-            signedTransaction.serialize()
-          );
-
+          console.log("Sending signed transaction");
+          const txid = await sendTransaction(signedTransaction, connection);
           toast.success(`Transaction sent successfully! TXID: ${txid}`);
           return `Transaction sent successfully! TXID: ${txid}`;
         }
-      }
 
-      return data.response || "Received an empty response.";
+        return data.response || "Received an empty response.";
+      }
+      
+      // Modified to use data.response when available, even if data.output is falsy
+      if (data.response) {
+        console.log("Using data.response since data.output is falsy:", data.response);
+        return data.response;
+      }
+      
+      console.log("No response or output received from API");
+      return "No output received from API";
     } catch (error: any) {
       console.error("API Error:", error.message);
       toast.error(`Error: ${error.message}`);
@@ -191,6 +360,85 @@ export function ChatInterface() {
     <div className="relative flex h-screen text-white">
       <ToastContainer />
       <div className="absolute inset-0 bg-[url('/background.jpg')] bg-cover bg-center backdrop-blur-lg z-0"></div>
+      
+      {/* Diagnostic Overlay - Only visible when toggled */}
+      {showDiagnostics && (
+        <div className="absolute top-4 right-4 bg-gray-800 border border-gray-700 p-4 rounded-md z-50 w-96 shadow-lg">
+          <div className="flex justify-between items-center mb-2">
+            <h3 className="font-semibold">API Diagnostics</h3>
+            <button 
+              onClick={toggleDiagnostics}
+              className="text-gray-400 hover:text-white"
+            >
+              <X size={16} />
+            </button>
+          </div>
+          <div className="space-y-2 text-sm">
+            <div className="flex justify-between">
+              <span>Active Endpoint:</span>
+              <span className="font-mono">{diagnosticInfo.apiEndpoint}</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Backend Endpoint:</span>
+              <span className="font-mono">{diagnosticInfo.backendEndpoint}</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Connection Status:</span>
+              <span className={diagnosticInfo.connected ? "text-green-400" : "text-red-400"}>
+                {diagnosticInfo.connected ? "Connected" : "Disconnected"}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span>Environment:</span>
+              <span>{process.env.NODE_ENV}</span>
+            </div>
+            {diagnosticInfo.lastError && (
+              <div className="mt-2">
+                <span className="block text-gray-400">Last Error:</span>
+                <span className="block text-red-400 text-xs mt-1 font-mono break-all">
+                  {diagnosticInfo.lastError}
+                </span>
+              </div>
+            )}
+            <div className="mt-2 pt-2 border-t border-gray-700">
+              <button
+                onClick={async () => {
+                  const checkApiConnectivity = async () => {
+                    try {
+                      const response = await fetch(API_ENDPOINT, {
+                        method: "HEAD",
+                        headers: { "Origin": window.location.origin }
+                      });
+                      setDiagnosticInfo({
+                        apiEndpoint: API_ENDPOINT,
+                        backendEndpoint: BACKEND_API_ENDPOINT,
+                        connected: response.ok,
+                        lastError: null
+                      });
+                      console.log(`Reconnection check: ${response.ok ? 'Success' : 'Failed'}`);
+                      toast.info(`API connectivity check: ${response.ok ? 'Success' : 'Failed'}`);
+                    } catch (error: any) {
+                      setDiagnosticInfo({
+                        apiEndpoint: API_ENDPOINT,
+                        backendEndpoint: BACKEND_API_ENDPOINT,
+                        connected: false,
+                        lastError: error.message
+                      });
+                      toast.error(`API connectivity check failed: ${error.message}`);
+                    }
+                  };
+                  
+                  await checkApiConnectivity();
+                }}
+                className="w-full bg-indigo-600 p-2 rounded text-sm hover:bg-indigo-700"
+              >
+                Check Connectivity
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
       <div className="relative flex z-10 h-full w-full">
         {isSidebarOpen && (
           <div className="w-1/4 bg-gray-800 border-r border-gray-700 flex flex-col">
@@ -217,7 +465,10 @@ export function ChatInterface() {
                 >
                   <span className="truncate">{session.name}</span>
                   <button
-                    onClick={() => deleteSession(session.id)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      deleteSession(session.id);
+                    }}
                     className="text-gray-400 hover:text-red-500"
                   >
                     <Trash2 size={16} />
@@ -246,6 +497,20 @@ export function ChatInterface() {
               >
                 <Home />
               </Button>
+              {/* Diagnostics Toggle Button (only visible in development or when there are connection issues) */}
+              {(process.env.NODE_ENV === 'development' || !diagnosticInfo.connected) && (
+                <button
+                  onClick={toggleDiagnostics}
+                  className={`p-2 rounded text-xs ${
+                    diagnosticInfo.connected 
+                      ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' 
+                      : 'bg-red-700 text-white hover:bg-red-600'
+                  }`}
+                  title="Toggle API diagnostics"
+                >
+                  {diagnosticInfo.connected ? 'Diagnostics' : 'API Error'}
+                </button>
+              )}
             </div>
             <div className="flex items-center gap-4">
               <Wallet className="text-indigo-400" />

@@ -5,7 +5,11 @@
   "main": "index.ts",
   "scripts": {
     "build": "tsc",
-    "start": "nodemon src/index.ts"
+    "start": "nodemon src/index.ts",
+    "start:app-only": "cross-env API_PORT=3000 TELEGRAM_PORT=4001 nodemon src/index.ts",
+    "ngrok:start": "ngrok start --config=ngrok.yml --all",
+    "dev": "concurrently \"npm run start:app-only\" \"npm run ngrok:start\"",
+    "get-ngrok-urls": "node src/tools/getNgrokUrls.js"
   },
   "keywords": [],
   "author": "",
@@ -35,8 +39,11 @@
     "@types/express": "^5.0.0",
     "@types/node": "^22.10.2",
     "@types/pg": "^8.11.10",
+    "concurrently": "^8.2.2",
+    "cross-env": "^7.0.3",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
+    "ngrok": "^5.0.0-beta.2",
     "nodemon": "^3.1.9",
     "tsx": "^4.19.2",
     "typescript": "^5.7.2"

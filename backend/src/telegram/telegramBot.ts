@@ -7,6 +7,26 @@ import bcrypt from 'bcrypt';
 import { Pool } from 'pg';
 import express from 'express';
 
+// Add debugging log at the top of the file
+console.log('telegramBot.ts: Starting initialization');
+
+// Add process ID for tracking purposes
+console.log(`telegramBot.ts: Process ID: ${process.pid}`);
+
+// Check if ports are already in use with OS specific command
+const { execSync } = require('child_process');
+try {
+  const portCheckCommand = process.platform === 'win32' 
+    ? `netstat -ano | findstr :4000`
+    : `lsof -i :4000`;
+  
+  console.log('telegramBot.ts: Checking if port 4000 is already in use');
+  const portCheck = execSync(portCheckCommand).toString();
+  console.log(`telegramBot.ts: Port check result: ${portCheck}`);
+} catch (error) {
+  console.log('telegramBot.ts: Port appears to be available (or command failed)');
+}
+
 dotenv.config();
 
 interface UserState {
@@ -40,6 +60,7 @@ const userStates: {
 } = {};
 
 const app = express();
+console.log('telegramBot.ts: Created Express app instance');
 app.use(express.json());
 
 const bot = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN, {
@@ -91,16 +112,31 @@ app.get('/health', (req, res) => {
   });
 });
 
-const PORT = process.env.PORT || 4000;
+// Use a different environment variable for Telegram bot server
+// This is the key change that prevents port conflict
+const TELEGRAM_PORT = process.env.TELEGRAM_PORT || process.env.BOT_PORT || 4000;
+// Add debugging for port conflict
+console.log(`telegramBot.ts: About to start server on port ${TELEGRAM_PORT}, environment TELEGRAM_PORT=${process.env.TELEGRAM_PORT}, PORT=${process.env.PORT}`);
 
-app.listen(PORT, async () => {
-  try {
-    console.log(`Server is running on port ${PORT}`);
+// Add debugging to check if this is really where the conflict occurs
+console.log(`telegramBot.ts: Creating server with Express app.listen() on port ${TELEGRAM_PORT}`);
+
+// Use a try-catch to better log any errors that occur at server creation time
+try {
+  const server = app.listen(TELEGRAM_PORT, async () => {
+    console.log(`telegramBot.ts: Server is running on port ${TELEGRAM_PORT}`);
     console.log('Bot is running in polling mode');
-  } catch (error) {
-    console.error('Error starting server:', error);
-  }
-});
+  });
+  
+  server.on('error', (error) => {
+    console.error(`telegramBot.ts: Server error on port ${TELEGRAM_PORT}:`, error);
+    if (error.code === 'EADDRINUSE') {
+      console.error(`telegramBot.ts: Port ${TELEGRAM_PORT} is already in use. This could be another instance of the app or ngrok.`);
+    }
+  });
+} catch (error) {
+  console.error(`telegramBot.ts: Failed to create server on port ${TELEGRAM_PORT}:`, error);
+}
 
 app.on('error', (error) => {
   console.error('Express server error:', error);
