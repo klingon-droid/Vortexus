@@ -130,7 +130,7 @@ try {
   
   server.on('error', (error) => {
     console.error(`telegramBot.ts: Server error on port ${TELEGRAM_PORT}:`, error);
-    if (error.code === 'EADDRINUSE') {
+    if ((error as any).code === 'EADDRINUSE') {
       console.error(`telegramBot.ts: Port ${TELEGRAM_PORT} is already in use. This could be another instance of the app or ngrok.`);
     }
   });
