@@ -1,0 +1,46 @@
+# Environment files
+.env
+.env.*
+*.env
+*/.env
+*/.env.*
+
+# Node modules
+node_modules/
+*/node_modules/
+
+# Build directories
+*/dist/
+*/build/
+*/.next/
+*/out/
+
+# Local development
+.DS_Store
+.idea/
+.vscode/
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# SSL certificates
+*.pem
+*.key
+*.crt
+
+# Docker
+.docker/
+
+# Database files
+*.sqlite
+*.db
+
+# Other files
+.vercel
+.coverage
+.serverless
+.turbo 
